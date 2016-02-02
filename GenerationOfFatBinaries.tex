@@ -1,0 +1,29 @@
+\section{Generation of fat binaries}
+
+To make code generation consistent and straightforward the following scheme is proposed: 
+\begin{enumerate}
+  \item For each source file provided, the driver spawns the execution of preprocessor, compiler and assembler for the host and each available target device type. This results in the generation of an object file for each target device type. The toolchain of a given target may be modified so that it uses the same definitions (header files) as the host toolchain if that suits the system constraints.
+
+  \item Target linkers combine dedicated target objects into target shared libraries – one for each targetdevice type. The commands passed to the target frontend by the compiler driver always assume the creation of a shared library even if the commands passed to the driver by the user specify otherwise. The driver performs the translation of the host frontend commands to target frontend commands to assure that a target shared library is generated.
+
+  \item The host linker combines host object files into an executable/shared library and incorporateseach target shared libraries as is (no actual linking is done between host and target objects) into its own separate section within the host binary. The format of a binary section for offloading to a specific device is target-dependent and will be thereafter handled by the target RTL at runtime.
+
+  \item A new driver command-line option \command{–omptargets=T1,...,Tn} where \command{Ti} are valid target triples that specify which target device types the user wants to support in the execution of OpenMP target regions. An example, of the invocation of the compiler would be:
+  \\ ~ \\
+  \command{clang -–fopenmp -–target powerpc64-ibm-linux-gnu\\ –-omptargets=nvptx64-nvidia-cuda,x86-pc-linux-gnu foo.c bar.c –-o foobar.bin}
+  \\ ~ \\
+  for a hypothetical system where the host is a PowerPC processor and the available target device types are an NVIDIA GPU and x86 processor.
+
+  \item For each source file passed to the driver a unique object file is created for each target device type. The naming convention for a target object file is to append a suffix \command{tgt-<some-target-triple>} to the host object file name. At link time the driver forwards the target object files to the corresponding target toolchain. This mechanism underlies the compiler support for separate compilation. For example:
+  \\ ~ \\
+  \command{clang –-fopenmp –-target powerpc64-ibm-linux-gnu\\ –-omptargets=nvptx64-nvidia-cuda,x86-pc-linux-gnu foo.c --c}
+  \\ ~ \\
+  produces the files \command{foo.o}, \command{foo.o.tgt-nvptx64-nvidia-cuda} and \command{foo.o.tgt-x86-pc-linux-gnu}. Then the command:
+  \\ ~ \\
+  \command{clang –-fopenmp –-target powerpc64-ibm-linux-gnu\\ –-omptargets=nvptx64-nvidia-cuda,x86-pc-linux-gnu foo.o –-o foo.bin}
+  \\ ~ \\
+  instructs the compiler to locate and forward the files \command{foo.o.tgt-nvptx64-nvidia-cuda} and\command{foo.o.tgt-x86-pc-linux-gnu.o} to the \command{nvptx64-nvidia-cuda} and \command{x86-pc-linux-gnu} toolchains, respectively, so they can be properly linked before being embedded in the host binary.
+
+\end{enumerate}
+
+The resulting host executable/shared library will depend on the offload runtime library -– \libomptarget{}. This library will handle the initialization of target RTLs and translate the offload interface from compiler-generated code to the target RTL during program execution.

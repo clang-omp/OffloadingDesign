@@ -1,0 +1,275 @@
+\section{The libomptarget.so interface}
+The offload library implements the OpenMP 4.0 user-level runtime library routines:
+\begin{itemize}
+  \item \code{void omp_set_default_device(int device_num)}
+
+  \item \code{int omp_get_default_device(void)}
+
+  \item \code{int omp_get_num_devices(void)}
+
+  \item \code{int omp_is_initial_device(void)}
+\end{itemize}
+
+The offload library implements the following compiler-level runtime library routines:
+\begin{itemize}
+
+  \item \code{void __tgt_register_lib(__tgt_bin_desc* desc)}\\
+
+    Register the \libomptarget{} library and initialize target state (i.e. global variables and target entry points) for the current host shared library/executable and the corresponding target execution images that have those entry points implemented. This does not trigger any execution in any target as any real work with the target device can be postponed until the first target region is encountered during execution. This function is expected to appear only once per host shared library/executable in the .init section and is called before any constructors or static initializers are called for the host. The name of the caller of \code{__tgt_register_lib} follows the same pattern of the C++ initializers in Clang and is set to \code{_GLOBAL__A_000000_OPENMPTGT}. 
+
+  \item \code{void __tgt_target_data_begin(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype)}\\
+
+    Initiate a device data environment. It maps variables from the host data environment to the device data environment by recording the mapping between the associated variables’ references used in the host and target into the \libomptarget{} internal structures. The associated variables in the target device data environment are initialized according to the map-type. In the event a given associated variable has already been mapped in other enclosing device data environment, no action is taken for that variable.
+
+  \item \code{void __tgt_target_data_end(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype)}\\
+
+    Close a device data environment. It removes mapped variables from the current device data environment, releases target memory and destroy the mappings created by the \code{__tgt_target_data_begin()} call that initiated the current device data environment. It assigns host variables the value of the corresponding device data environment variable according to the map-type.
+
+  \item \code{void __tgt_target_data_update(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype)}\\
+
+    Make the value of a set of variables consistent between the host device and a target device. If avariable’s map type is \mfrom{}, use the value of the variable on the target device. If a variable’s map type is \mto{}, use the value of the variable on the host device.
+    
+  \item \code{int32_t __tgt_target(int32_t device_id, void *host_addr, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype)}\\
+
+    Perform the same actions as \code{__tgt_target_data_begin} in case \code{arg_num} is non-zero and launch the execution of the target region on the target device; if \code{arg_num} is non-zero after the region execution is done it also performs the same action as \code{__tgt_target_data_end} above. If the offloading fails, an error code is returned, which notifies the caller to transfer execution to the appropriate host region. The return code can be used as an error code which will give the compiler and run-time the freedom to implement optimized behaviors.
+
+  \item \code{int32_t __tgt_target_teams(int32_t device_id, void *host_addr, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype, int32_t num_teams, int32_t thread_limit)}\\
+
+    This is an extension of \code{__tgt_target} where the caller is able to specify the (maximum) number of teams and threads in each team that \libomptarget{} should start. It reflects the common nesting of the pragma target with the teams one, in OpenMP 4.0. 
+
+\end{itemize}
+
+All the \code{__tgt_target...} calls presented above perform an initial check to understand if the target specified by \code{device_id} was already initialized, and if not, triggers that initialization. The information registered by \code{__tgt_register_lib} is used to accomplish that.
+
+\subsection{Arguments for the libomptarget.so calls}
+The following describes the arguments used by the \libomptarget{} interface and how they are used.
+
+\noindent\rule{\textwidth}{0.4pt}
+
+\code{__tgt_bin_desc* desc} points to a constant data struct statically defined by the compiler:
+\begin{lstlisting}
+struct __tgt_bin_desc{
+  uint32_t NumDevices; 
+  __tgt_device_image *DeviceImages; 
+  __tgt_offload_entry *EntriesBegin;
+  __tgt_offload_entry *EntriesEnd; 
+};
+\end{lstlisting}
+
+\code{NumDevices} is the number of device types whose execution image was generated by the compiler in order to implement some of the offloading entry points. The device types are specified by the user during the invocation of the compiler by passing the flag \command{–omptargets=T1,...,Tn} where \command{Ti} is the triple of a target the user wants to support. NumDevices equals n in this case. 
+
+\code{DeviceImages} is a pointer to an array of NumDevices elements, whose element type is:
+\begin{lstlisting}
+struct __tgt_device_image{
+  void *ImageStart;
+  void *ImageEnd;
+  __tgt_offload_entry *EntriesBegin;
+  __tgt_offload_entry *EntriesEnd; 
+};
+\end{lstlisting}
+%
+where ImageStart and ImageEnd contain the addresses where a target image associated to the current host executable/shared library for a given device type starts and ends, respectively. ImageEnd is non-inclusive, i.e. it points to the byte immediately after the target image ends.
+
+\code{EntriesBegin} and \code{EntriesEnd} point to the first and last element of an array that contains the information of each global variable and target entry point that require a map between host and target. These pointers are present in both \code{__tgt_bin_desc} and \code{__tgt_device_image} so that the target dependent runtime (see section 5) can use this information as well to more easily retrieve the entries from the target image (e.g. to retrieve the symbol names of the entries – see below). 
+
+Each element of the array pointed by \code{EntriesBegin} has type:
+\begin{lstlisting}
+struct __tgt_offload_entry{
+  void *addr;
+  char *name;
+  int64_t size;
+  };
+\end{lstlisting}
+%
+where \code{addr} is the address of that global variable or entry point in the host, name is the name of the 
+symbol that refers to that global variable or entry point, and size is the size in bytes of the global variable or zero if it is an entry point. If the address field is set to \code{NULL}, the corresponding entry in the table is not supported by the target device associated to this table.
+
+\noindent\rule{\textwidth}{0.4pt}
+
+\libomptarget{} has to be able to map the host entries to the corresponding device entries.
+
+There are different strategies that can be used for mapping the entries. The simplest one is to use the names of the entries for the mapping by performing a name-based search using the name field of the \code{__tgt_offload_entry}. The field name is useful for targets whose runtime requires access to the symbol names in order to locate the correspondent address in the target image. The array that starts at EntriesBegin is built by the compiler in conjunction with the linker, which forwards sequences of entries of different compilation units to the same binary section. In case target and host toolchains can provide strict ordering for both target and host tables – then the mapping can be done by the sequence number of the entry. The frontend ensures that the global variables/entries follow the same order they appear in the source file. Entries associated with static initializers and global destructors are appended to the end of the entries array (i.e. after the global variables themselves and the entries associated with target regions) in the same order they are required in the program. 
+
+\begin{example}
+\lstset{basicstyle=\scriptsize,frame=single}
+\begin{lstlisting}
+#pragma omp declare target
+class C{
+  C() {// ctor of C}
+  ~C() {//dtor of C}
+};
+
+C a;
+#pragma omp end declare target
+
+foo(){
+  #pragma target
+  { //target region 1 }
+}
+
+#pragma omp declare target
+C b;
+#pragma omp end declare target
+
+bar(){
+  #pragma target
+  { //target region 2 }
+}
+\end{lstlisting}
+\lstset{basicstyle=\small\bfseries,frame=none}
+\caption{Motivational example for the ordering of entries.}
+\label{ex:EntriesOrdering}
+\end{example}
+%
+E.g. in the sample program in Example~\ref{ex:EntriesOrdering}, the order of the entries will be: global variable \code{a}, target region 1, global variable \code{b}, target region 2, caller of the constructor of \code{a} and \code{b} (\code{a} and \code{b} have the same priority), caller of the destructors of \code{a} and \code{b}. The callers of the constructors and destructors are always launched with a single thread and team. If the toolchain of a given target does not preserve the order, that target runtime may consult the host entries and obtain the same order of the symbols based on the name.
+
+\noindent\rule{\textwidth}{0.4pt}
+
+\code{int32_t device_id} is an integer that uniquely identifies a given target. In the first call of \code{__tgt_register_lib}, \libomptarget{} detects the available target dependent RTLs in the system and uses them to query the number of devices of each type that are ready to be used. If $A$ devices of type \command{T1} and $B$ devices of type \command{T2} are found, where \command{T1} and \command{T2} are the types specified by the user with \command{-–omptargets=T1,T2}, \code{device_id} $[0,A[$ will map to devices of type \command{T1} and \code{device_id} $[A,A+B[$ will map to devices of type \command{T2}. If \code{device_id} is greater or equal than $A+B$, the call where it is used will fail and no action will be taken by \libomptarget{}. On top of the positive values used for \code{device_id}, the compiler also employs three reserved values:
+
+\begin{itemize}
+  \item \code{device_id = -1}: informs the runtime that the user has not specified any device ID, and therefore the default must be used, which may be specified through an environment variables as specified in the OpenMP 4.0 specification.
+
+  \item \code{device_id = -2}: informs the runtime that the target action must be performed on all available devices and can be delayed until the first time the device action is invoked with a device ID greater or equal to \code{-1}. This is mainly used to call C++ global initializers, which only need to be called if the device is eventually used for executing at least one target region.
+
+  \item \code{device_id = -3}: informs the runtime that the target action must be performed on all available devices that were ever used in the current library. This is mainly used to call C++ destructors, which are only required if that device was used before.
+\end{itemize}
+
+\noindent\rule{\textwidth}{0.4pt}
+
+\code{int32_t num_args} is the number of data pointers that require a mapping.
+
+\noindent\rule{\textwidth}{0.4pt}
+
+\code{void** args} is a pointer to an array with \code{num_args} arguments whose elements point to the first byte of the array section that needs to be mapped.
+
+\noindent\rule{\textwidth}{0.4pt}
+
+\code{int64_t* args_size} is a pointer to an array with \code{num_args} arguments whose elements contain the size in bytes of the array section to be mapped.
+
+\noindent\rule{\textwidth}{0.4pt}
+
+\code{void** args_base} is a pointer to an array with \code{num_args} arguments whose elements point to the base address of the declaration the mapping refers to. \code{args_base} differs from args if an array section does not start at zero. \libomptarget{} needs to know the base addresses in order to relate mapped data with target region arguments that are dereferenced in the target region body.
+
+\noindent\rule{\textwidth}{0.4pt}
+
+\code{int32_t *args_maptype} is a pointer to an array with \code{num_args} arguments whose elements contain the required map attributes as specified in the enum:
+\begin{lstlisting}
+enum tgt_map_type {
+  OMP_TGT_MAPTYPE_ALLOC = 0x0000,
+  OMP_TGT_MAPTYPE_TO = 0x0001,
+  OMP_TGT_MAPTYPE_FROM = 0x0002,
+  OMP_TGT_MAPTYPE_ALWAYS = 0x0004,
+  OMP_TGT_MAPTYPE_RELEASE = 0x0008,
+  OMP_TGT_MAPTYPE_DELETE = 0x0018,
+  OMP_TGT_MAPTYPE_POINTER = 0x0020
+}
+\end{lstlisting}
+
+The attributes \code{OMP_TGT_MAPTYPE_ALLOC} to \code{OMP_TGT_MAPTYPE_DELETE} follow the map types in the OpenMP 4.1 specification. \code{OMP_TGT_MAPTYPE_POINTER} informs the runtime the map is based on a pointer instead of a constant array. \code{OMP_TGT_MAPTYPE_POINTER} will cause the runtime to allocate the memory of the pointer and to initialize it with the address of the memory allocated on the device. The following aims at clarifying the use of this flag. Table~\ref{tb:PointersMapping} shows the content of the arrays passed to \code{__tgt_target_data_begin()} and \code{__tgt_target} as result of the \dtargetdata{} and \dtarget{} pragmas in Example~\ref{ex:PointersMapping}. The interface is used in two different ways depending on the variable that is being mapped:
+\begin{itemize}
+  \item Scalars and Arrays: \code{args_base} will contain references to the variables that are being mapped. For scalars, \code{args} will point to the variables that are being mapped. For arrays, \code{args} will point to the beginning of the section that the user specified (the user may require only part of the array to be used in the device). \code{args_size} will contain the size of the variable or section to be mapped and \code{args_maptype} will contain flags to control the data movement between host and device.
+
+  \item Pointers: the first time a pointer is mapped, the region it is pointing to is also mapped, and the mapped address should be used to initialize the mapped pointer. When a pointer is being mapped, \code{args_base} will contain the reference to a pointer but args will contain the start address of the pointee’s section that has to be mapped.
+
+\end{itemize}
+
+\code{A} and \code{pA} are also passed to \code{__tgt_target} because they are captured in the body of the target region and are therefore arguments to the target region. However, the \libomptarget{} implementation will detect they were mapped before and will not take any action to map these variables again.
+
+The arguments that are used to invoke the target kernel (see void \code{*target_vars_ptr} in Section~\ref{sc:TargetRTLInterface}) consist of the mapped base address of all elements. In the example above the arguments would be \code{[&dB[0], &di, &dpB, &A[0], &dpA]}, where \code{dX} is the map of {X} in the device.
+
+\begin{example}
+\lstset{basicstyle=\scriptsize,frame=single}
+\begin{lstlisting}
+// N, M and S are constants
+foo(){
+  int A[N], B[M];
+  int *pA, *pB; int i;
+
+  pA = (int*)malloc(N*sizeof(int)); pB = (int*)malloc(M*sizeof(int));
+
+  #pragma omp target data map(A[S:M], pA[S:M])
+  { 
+    #pragma omp target map(from:B,i) map(to:pB[S:M])
+    {
+      for (i=S; i<M; ++i){ 
+        ++A[i]; 
+        --pA[i]; 
+        B[i-S] = pB[i] - A[i]*pA[i]; 
+      }
+
+    }
+  }
+}
+\end{lstlisting}
+\lstset{basicstyle=\small\bfseries,frame=none}
+\caption{Example requiring mapping of pointer.}
+\label{ex:PointersMapping}
+\end{example}
+
+\begin{table}
+\centering
+\begin{tabular}{c|c|c|p{6.5cm}}
+%
+\code{args_base} & 
+\code{args} & 
+\code{args_size} & 
+\code{args_maptype} \\\hline
+%
+\multicolumn{4}{c}{\cellcolor{gray!20}\code{\#pragma omp target data - __tgt_target_data_begin()}} \\\hline
+%   
+\code{&A[0]} & 
+\code{&A[S]} & 
+\code{M*sizeof(int)} & 
+\code{OMP_TGT_MAPTYPE_TO| OMP_TGT_MAPTYPE_FROM}\\\hline
+%
+\code{&pA} & 
+\code{&pA[S]} & 
+\code{M*sizeof(int)} & 
+\code{OMP_TGT_MAPTYPE_POINTER | OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_FROM}\\\hline
+%
+\multicolumn{4}{c}{\cellcolor{gray!20}\code{\#pragma omp target - __tgt_target()}} \\\hline
+%  
+\code{&B[0]} & 
+\code{&B[0]} & 
+\code{M*sizeof(int)} & 
+\code{OMP_TGT_MAPTYPE_FROM}\\\hline
+%
+\code{&i} & 
+\code{&i} & 
+\code{sizeof(int)} & 
+\code{OMP_TGT_MAPTYPE_FROM}\\\hline
+%
+\code{&pB} & 
+\code{&pB[S]} & 
+\code{M*sizeof(int)} & 
+\code{OMP_TGT_MAPTYPE_POINTER | OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_FROM}\\\hline 
+% 
+\code{&A[0]} & 
+\code{&A[0]} & 
+\code{M*sizeof(int)} & 
+\code{OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_FROM} \\\hline
+%
+\code{&pA} & 
+\code{&pA} & 
+\code{M*sizeof(void*)} & 
+\code{OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_FROM}
+%
+\end{tabular}
+\caption{Contents of the arrays passed through the interface for Example~\ref{ex:PointersMapping}.}
+\label{tb:PointersMapping}
+\end{table}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,81 @@
+\section{OpenMP 4.0 offloading overview}\label{sc:OpenMP offloading overview}
+
+The OpenMP 4.0 specification introduces offloading directives that can be used to take advantage of accelerators or devices, in OpenMP terminology (see the OpenMP 4.0 specification at www.openmp.org).
+\begin{itemize}
+  \item \textbf{Device}: an implementation-defined logical execution unit. The execution model is host-centric such that a host device offloads code and data to target devices.
+
+  \item \textbf{Target} regions are structured code blocks that execute on a target device. This is conditional on the run-time availability of a device, the ability of the compiler to generate device code, and other factors. 
+
+  \item \textbf{Target declarations} are used to specify mapping of global variables to a device and create device specific versions of functions that can be called from target regions.
+
+  \item \textbf{Device data environments} contain the variables that are currently present on the target device.
+
+  \item \textbf{A mapped variable} is a variable in a (host) data environment with a corresponding variable in a device data environment.
+
+\end{itemize}
+
+The \dtarget{} directive creates both a device data environment and a target region. It may have associated clauses to specify further details, like the exact device to use if more than one is present in the system (\cdevice{} clause) or whether the data should be moved to/from the device or only allocated in the device memory (\cmap{} clause). The \ddeclaretarget{} directive declares that enclosed global variables and functions should have corresponding device versions.
+
+Example~\ref{ex:OffloadingExample} illustrates how offloading can be expressed using the available set of directives.
+
+
+\begin{example}
+\lstset{basicstyle=\scriptsize,frame=single}
+\begin{lstlisting}
+// foo() will be implemented for the host and device
+#pragma omp declare target
+int foo(int[1000]);
+#pragma omp end declare target
+
+// All declarations outside a declare target region will NOT be implemented
+// for the device 
+...
+int device_count = omp_get_num_devices();
+int device_no;
+int *red = malloc(device_count * sizeof(int));
+int c[1000];
+
+// Several host threads are going to be spawned to execute the structured 
+// block associated with the parallel region (this is unrelated with the
+// offloading support)
+
+#pragma omp parallel for
+for (i = 0; i < 1000; i++) {
+
+  device_no = i % device_count;
+
+  // The target directive specifies that the execution of associated 
+  // structured block (target region) should be transferred to the device. 
+  //
+  // The device clause states that device whose ID is device_no should be 
+  // used.
+  // 
+  // The first map clause specifies that an instance of c has to be allocated 
+  // in the device and updated with the host content of c prior the execution 
+  // of the target region (to:).
+  //
+  // The second map clause specifies that an instance of red[i] has to be 
+  // allocated in the device and updated with the host content prior the 
+  // execution of the target region and that the host instance should be 
+  // updated with the content of the device instance after the target region 
+  // execution is complete.
+  //
+  // If for some reason the device is not available, a host version of the 
+  // target region is executed instead.
+  #pragma omp target device(device_no) map(to:c) map(red[i])
+  { 
+    // This code is going to be executed on the device(s)
+    red[i] += foo(c); 
+  }
+
+  // The execution of the target region is blocking, therefore the dedicated 
+  // host thread will wait for the device to complete execution.
+}
+
+for (i = 0; i< device_count; i++)
+ total_red += red[i];
+\end{lstlisting}
+\lstset{basicstyle=\small\bfseries,frame=none}
+\caption{Offloading expressed with OpenMP directives.}
+\label{ex:OffloadingExample}
+\end{example}

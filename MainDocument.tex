@@ -1,0 +1,66 @@
+\documentclass[oneside,11pt]{article}
+
+\usepackage{blindtext, fancyhdr, newfloat, caption, graphicx}
+\usepackage{authblk}
+\usepackage[margin=1in]{geometry}
+\usepackage{listings}
+\usepackage{fancyvrb}
+\usepackage{xcolor,colortbl}
+
+\lstset{
+        language=C++,
+        basicstyle=\small\bfseries,
+        %numberstyle=,
+        stepnumber=1,
+        numbersep=5pt,
+        showspaces=false,
+        showstringspaces=false,
+        showtabs=false,
+        frame=none,
+        tabsize=2,
+        %captionpos=b,
+        breaklines=true,
+        breakatwhitespace=false,
+        escapeinside={\%*}{*)}
+}
+
+\lstset{morekeywords={pragma, omp, target, device, data, end, declare
+    teams,num\_teams,thread\_limit,map,to,map,from,tofrom,
+    parallel},emphstyle={\bfseries}}
+
+% Example environment.
+\DeclareFloatingEnvironment[placement={!ht},name=Example]{example}
+
+
+
+\pagestyle{fancy}
+
+\title{\textbf{OpenMP offload infrastructure in LLVM}}
+
+\author{
+  Samuel Antao (IBM),
+  Carlo Bertolli (IBM),
+  Andrey Bokhanko (Intel),
+  Alexandre Eichenberger (IBM),
+  Hal Finkel (Argonne National Laboratory),
+  Sergey Ostanevich (Intel),
+  Eric Stotzer (Texas Instruments),
+  Guansong Zhang (AMD)
+}
+
+
+\begin{document}\thispagestyle{empty}
+\maketitle
+
+% Definitions used in the document, e.g. directives, code snippets.
+\input{Definitions.tex}
+
+
+\input{OpenMPOffloadingOverview}
+\input{GoalOfDesign}
+\input{ModelOfUse}
+\input{GenerationOfFatBinaries}
+\input{LibomptargetInterface}
+\input{DeviceRTLInterface}
+
+\end{document}
