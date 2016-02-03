@@ -156,23 +156,28 @@ E.g. in the sample program in Example~\ref{ex:EntriesOrdering}, the order of the
 \code{int32_t *args_maptype} is a pointer to an array with \code{num_args} arguments whose elements contain the required map attributes as specified in the enum:
 \begin{lstlisting}
 enum tgt_map_type {
-  OMP_TGT_MAPTYPE_ALLOC = 0x0000,
   OMP_TGT_MAPTYPE_TO = 0x0001,
   OMP_TGT_MAPTYPE_FROM = 0x0002,
   OMP_TGT_MAPTYPE_ALWAYS = 0x0004,
-  OMP_TGT_MAPTYPE_RELEASE = 0x0008,
-  OMP_TGT_MAPTYPE_DELETE = 0x0018,
-  OMP_TGT_MAPTYPE_POINTER = 0x0020
-}
+  OMP_TGT_MAPTYPE_DELETE = 0x0008,
+  OMP_TGT_MAPTYPE_MAPPED_PTR = 0x0010,
+  OMP_TGT_MAPTYPE_TARGET_VAR = 0x0020,
+  OMP_TGT_MAPTYPE_USE_DEVICE_PTR = 0x0040,
+  OMP_TGT_MAPTYPE_PRIVATE = 0x0080
+};
 \end{lstlisting}
 
-The attributes \code{OMP_TGT_MAPTYPE_ALLOC} to \code{OMP_TGT_MAPTYPE_DELETE} follow the map types in the OpenMP 4.1 specification. \code{OMP_TGT_MAPTYPE_POINTER} informs the runtime the map is based on a pointer instead of a constant array. \code{OMP_TGT_MAPTYPE_POINTER} will cause the runtime to allocate the memory of the pointer and to initialize it with the address of the memory allocated on the device. The following aims at clarifying the use of this flag. Table~\ref{tb:PointersMapping} shows the content of the arrays passed to \code{__tgt_target_data_begin()} and \code{__tgt_target} as result of the \dtargetdata{} and \dtarget{} pragmas in Example~\ref{ex:PointersMapping}. The interface is used in two different ways depending on the variable that is being mapped:
+The attributes \code{OMP_TGT_MAPTYPE_TO} to \code{OMP_TGT_MAPTYPE_DELETE} follow the map types in the OpenMP 4.5 specification. \code{OMP_TGT_MAPTYPE_MAPPED_PTR} indicates the presence of a mapped pointer, for which the runtime maps the pointer variable as well as the pointee variable (namely, the variable pointed to by the pointer). The attribute also instructs the runtime to initialize the value of the pointer on the device with the base device address of the pointee mapped variable. \code{OMP_TGT_MAPTYPE_TARGET_VAR} instructs the runtime to add the base device address of the mapped variable to the target var pointer list.  \code{OMP_TGT_MAPTYPE_USE_DEVICE_PTR} instructs the runtime to returns the base device address of the mapped variable in the corresponding \code{base_args} entry. When used in conjunction with the \code{OMP_TGT_MAPTYPE_MAPPED_PTR} attribute, it returns the base device address of the pointer mapped  variable. \code{OMP_TGT_MAPTYPE_PRIVATE} informs the runtime that the operation is for a private variable instead of a mapped variable. Firstprivate operations are indicated by using the  \code{OMP_TGT_MAPTYPE_TO}  attribute in conjunction with the private attribute.  The fields in the interface are used in two different ways depending on the presence of the \code{OMP_TGT_MAPTYPE_MAPPED_PTR} attribute.
+%
 \begin{itemize}
-  \item Scalars and Arrays: \code{args_base} will contain references to the variables that are being mapped. For scalars, \code{args} will point to the variables that are being mapped. For arrays, \code{args} will point to the beginning of the section that the user specified (the user may require only part of the array to be used in the device). \code{args_size} will contain the size of the variable or section to be mapped and \code{args_maptype} will contain flags to control the data movement between host and device.
+  \item Variables without the \code{OMP_TGT_MAPTYPE_MAPPED_PTR} attribute.  \code{args_base} contain the references to the variables that are being mapped.  \code{args} points to the beginning of the data as requested by the user. For scalars, \code{args_base}  and \code{args} are identical. For arrays, the user may request a subset of arrays, in which case \code{args} points to the beginning of these array subsets. Similarly, for struct, the user may request to map only a subset of the struct fields, in which case  \code{args} points to the first fields of these structs. \code{args_size} contains the sizes of the variables, or the appropriate subsets of the variables, that are being mapped. \code{args_maptype} contains the attributes that control the data movement between host and device.
 
-  \item Pointers: the first time a pointer is mapped, the region it is pointing to is also mapped, and the mapped address should be used to initialize the mapped pointer. When a pointer is being mapped, \code{args_base} will contain the reference to a pointer but args will contain the start address of the pointee’s section that has to be mapped.
-
+  \item Variables with the \code{OMP_TGT_MAPTYPE_MAPPED_PTR} attribute. Arguments for mapped pointers describe both the pointer and pointee variables.  \code{args_base} contains the references to the pointer variables to be mapped.  If needed, the references to the pointee variables are found by dereferencing the \code{args_base} pointers. \code{args} contains the beginning of the data of the pointee variables.   For arrays and structs, \code{args} points to the subset of the pointee variables that are being mapped. \code{args_size} contains the sizes of the pointee variables, or the appropriate subset of the variables, that are being mapped. \code{args_maptype}  contains the attributes that control the data movement of the pointee variable between host and device. By definition, the values of the mapped pointer variables on the device are never copied back to the host.
+%
 \end{itemize}
+Regardless of the interface, zero-length array references are identified by their \code{args_size} values of zero. By definition, zero-length array have no offset.
+
+Table~\ref{tb:PointersMapping} shows the content of the arrays passed to \code{__tgt_target_data_begin()} and \code{__tgt_target} as result of the \dtargetdata{} and \dtarget{} pragmas in Example~\ref{ex:PointersMapping}.
 
 \code{A} and \code{pA} are also passed to \code{__tgt_target} because they are captured in the body of the target region and are therefore arguments to the target region. However, the \libomptarget{} implementation will detect they were mapped before and will not take any action to map these variables again.
 
@@ -183,21 +188,21 @@ The arguments that are used to invoke the target kernel (see void \code{*target_
 \begin{lstlisting}
 // N, M and S are constants
 foo(){
-  int A[N], B[M];
-  int *pA, *pB; int i;
+  int A[N], *pA, i;
+  struct S1 {int B[M], *pB; } s1;
 
-  pA = (int*)malloc(N*sizeof(int)); pB = (int*)malloc(M*sizeof(int));
+  pA = (int*)malloc(N*sizeof(int)); 
+  s1.pb = (int*)malloc(M*sizeof(int)); 
 
-  #pragma omp target data map(A[S:M], pA[S:M])
+  #pragma omp target data map(pA[S:M], s1)
   { 
-    #pragma omp target map(from:B,i) map(to:pB[S:M])
+    #pragma omp target firstprivate(i) map(to: pA[0:0], A[S:M], s1.B[0:M]) map(from:s1.pb[0:M]) 
     {
       for (i=S; i<M; ++i){ 
         ++A[i]; 
         --pA[i]; 
-        B[i-S] = pB[i] - A[i]*pA[i]; 
+        s1.pb[i-S] = s1.B[i-S] + A[i]*pA[i]; 
       }
-
     }
   }
 }
@@ -217,43 +222,43 @@ foo(){
 \code{args_maptype} \\\hline
 %
 \multicolumn{4}{c}{\cellcolor{gray!20}\code{\#pragma omp target data - __tgt_target_data_begin()}} \\\hline
-%   
-\code{&A[0]} & 
-\code{&A[S]} & 
-\code{M*sizeof(int)} & 
-\code{OMP_TGT_MAPTYPE_TO| OMP_TGT_MAPTYPE_FROM}\\\hline
-%
-\code{&pA} & 
+%    map(pA[S:M])
+\code{&pA[0]} & 
 \code{&pA[S]} & 
 \code{M*sizeof(int)} & 
-\code{OMP_TGT_MAPTYPE_POINTER | OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_FROM}\\\hline
+\code{OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_FROM}\\\hline
+%  map(s1)
+\code{&s1} & 
+\code{&s1} & 
+\code{sizeof(S1)} & 
+\code{OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_FROM}\\\hline
 %
 \multicolumn{4}{c}{\cellcolor{gray!20}\code{\#pragma omp target - __tgt_target()}} \\\hline
-%  
-\code{&B[0]} & 
-\code{&B[0]} & 
-\code{M*sizeof(int)} & 
-\code{OMP_TGT_MAPTYPE_FROM}\\\hline
-%
+%  firstprivate(i) 
 \code{&i} & 
 \code{&i} & 
 \code{sizeof(int)} & 
-\code{OMP_TGT_MAPTYPE_FROM}\\\hline
-%
-\code{&pB} & 
-\code{&pB[S]} & 
+\code{OMP_TGT_MAPTYPE_PRIVATE  | OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_TARGET_VAR}\\\hline
+%  map(to: pA[0:0])
+\code{&pA[0]} & 
+\code{&pA[0]} & 
+\code{0} & 
+\code{OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_TARGET_VAR}\\\hline
+% map(to: A[S:M])
+\code{&i} &A[0] 
+\code{&i} & A[S]
+\code{sizeof(int)} & 
+\code{OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_TARGET_VAR}\\\hline
+% map(to s1.B[0:M])
+\code{&s1.B[0]} & 
+\code{&s1.B[M]} & 
 \code{M*sizeof(int)} & 
-\code{OMP_TGT_MAPTYPE_POINTER | OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_FROM}\\\hline 
-% 
-\code{&A[0]} & 
-\code{&A[0]} & 
+\code{OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_TARGET_VAR}\\\hline 
+% map(from s1.pB[0:M])
+\code{&s1.pB} & 
+\code{&s1.B[0]} & 
 \code{M*sizeof(int)} & 
-\code{OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_FROM} \\\hline
-%
-\code{&pA} & 
-\code{&pA} & 
-\code{M*sizeof(void*)} & 
-\code{OMP_TGT_MAPTYPE_TO | OMP_TGT_MAPTYPE_FROM}
+\code{OMP_TGT_MAPTYPE_POINTER | OMP_TGT_MAPTYPE_FROM}\\\hline 
 %
 \end{tabular}
 \caption{Contents of the arrays passed through the interface for Example~\ref{ex:PointersMapping}.}
