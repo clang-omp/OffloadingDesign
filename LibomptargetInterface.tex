@@ -263,7 +263,7 @@ mapped array for which the compiler want the device address\\\hline
 \multicolumn{4}{c}{\cellcolor{gray!20}\code{\#pragma omp target - __tgt_target()}} \\\hline
 %  map(to: pA[0:0])
 \code{pA} & 
-\code{null} & 
+\code{undefined} & 
 \code{0} & 
 \code{TO | FIRST_MAP} &
 zero-length first-private pointer to a mapped array\\\hline
@@ -293,14 +293,14 @@ memory move for subset of mapped struct\\\hline
 mapped pointer and pointee array subset\\\hline 
 % is_device_ptr(C)
 \code{&C} & 
-\code{null} & 
-\code{0} & 
+\code{undefined} & 
+\code{undefined} & 
 \code{PRIVATE_VAL} &
 mapped pointer and pointee array subset\\\hline 
 %  firstprivate(i) 
 \code{i} & 
-\code{NULL} & 
-\code{0} & 
+\code{undefined} & 
+\code{undefined} & 
 \code{PRIVATE_VAL} &
 first-private scalar passed as value\\\hline%  firstprivate(D) 
 \code{&D} & 
