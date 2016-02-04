@@ -161,31 +161,31 @@ enum tgt_map_type {
   OMP_TGT_MAPTYPE_ALWAYS = 0x0004,
   OMP_TGT_MAPTYPE_DELETE = 0x0008,
   OMP_TGT_MAPTYPE_MAP_PTR = 0x0010,
-  OMP_TGT_MAPTYPE_RETURN_PTR = 0x0020,
-  OMP_TGT_MAPTYPE_FORWARD_PTR = 0x0040,
-  OMP_TGT_MAPTYPE_FORWARD_VAL = 0x0080,
-  OMP_TGT_MAPTYPE_PRIVATE = 0x0100
+  OMP_TGT_MAPTYPE_FIRST_MAP = 0x0020,
+  OMP_TGT_MAPTYPE_RETURN_PTR = 0x0040,
+  OMP_TGT_MAPTYPE_PRIVATE_PTR = 0x0080,
+  OMP_TGT_MAPTYPE_PRIVATE_VAL = 0x0100
 };
 \end{lstlisting}
 
 \sloppy
 \code{OMP_TGT_MAPTYPE_TO} instructs the runtime to copy  host data to the device in a target data begin, target update, or when initiating a target construct.  \code{OMP_TGT_MAPTYPE_FROM} instructs the runtime to copy  device data to the host in a target data end, and target update, or when completing a target construct.  \code{OMP_TGT_MAPTYPE_ALWAYS} forces the copying regardless of the reference count associated with the map.  \code{OMP_TGT_MAPTYPE_DELETE}  forces the unmapping of the object in a target data end or when completing a target construct. \code{OMP_TGT_MAPTYPE_MAP_PTR} forces the runtime to map the pointer variable as well as the pointee variable. This attribute also instructs the runtime to initialize the value of the pointer on the device with the base device address of the pointee mapped variable. 
 
+\code{OMP_TGT_MAPTYPE_FIRST_MAP} instructs the runtime that it is the first occurrence of this mapped variable within this construct.  When used with  the \code{OMP_TGT_MAPTYPE_MAP_PTR}, it instructs the runtime that it is the first occurrence of the pointer mapped variable; a pointee mapped variable is considered by definition as its first occurrence. This attributes is used to determine when to update the reference count associated with a mapped variable needs, and when to include the base device address of a mapped variables in the target var argument. 
+
 \code{OMP_TGT_MAPTYPE_RETURN_PTR} instructs the runtime to returns the base device address of the mapped variable in the corresponding \code{base_args} entry. When used with  the \code{OMP_TGT_MAPTYPE_MAP_PTR} attribute, the runtime returns the base device address of the pointer mapped variable. This attribute is used to implement the \code{use_device_ptr} clause.
 
-\code{OMP_TGT_MAPTYPE_FORWARD_PTR} instructs the runtime to forward the base device address of the mapped variable to the target var argument.  When used with  the \code{OMP_TGT_MAPTYPE_MAP_PTR} attribute, the runtime forwards the base device address of the pointer mapped variable. 
+The next two flags indicate to the runtime that it is not dealing with mapped variables.  First, \code{OMP_TGT_MAPTYPE_PRIVATE_PTR} informs the runtime that the described variable is a private variable. First-private variables are indicated by using the  \code{OMP_TGT_MAPTYPE_TO}  attribute in conjunction with the private attribute. The runtime is responsible for allocating the device memory associated with the variable, but it is not mapped as it is private. Second, \code{OMP_TGT_MAPTYPE_PRIVATE_VAL} instructs the runtime to simply forward the value of the \code{args_base} parameter to the target construct.  This attribute is used to implement the \code{is_device_ptr} clause. This attribute can also be used by the compiler to forward small first-private values directly to the device via the target var argument. No allocation of memory occurs with this attribute.
 
-The next two flags indicate to the runtime that it is not dealing with mapped variables.  First, \code{OMP_TGT_MAPTYPE_PRIVATE} informs the runtime that the described variable is a private variable. First-private variables are indicated by using the  \code{OMP_TGT_MAPTYPE_TO}  attribute in conjunction with the private attribute. Second, \code{OMP_TGT_MAPTYPE_FORWARD_VAL} instructs the runtime to simply forward the value of the \code{args_base} parameter to the target construct.  This attribute is used to implement the \code{is_device_ptr} clause. This attribute can also be used by the compiler to forward small first-private values directly to the device via the target var argument. 
-
-The fields in the interface are used in three different ways depending on the presence of the \code{OMP_TGT_MAPTYPE_MAPPED_PTR} and \code{OMP_TGT_MAPTYPE_FORWARD_VAL} attributes.
+The fields in the interface are used in three different ways depending on the presence of the \code{OMP_TGT_MAPTYPE_MAP_PTR} and \code{OMP_TGT_MAPTYPE_PRIVATE_VAL} attributes.
 
 %
 \begin{itemize}
-  \item Variables without the \code{OMP_TGT_MAPTYPE_MAPPED_PTR} and \code{OMP_TGT_MAPTYPE_FORWARD_VAL} attributes.  \code{args_base} contain the references to the variables that are being mapped.  \code{args} points to the beginning of the data as requested by the user. For scalars, \code{args_base}  and \code{args} are identical. For arrays, the user may request a subset of arrays, in which case \code{args} points to the beginning of these array subsets. Similarly, for struct, the user may request to map only a subset of the struct fields, in which case  \code{args} points to the first fields of these structs. \code{args_size} contains the sizes of the variables, or the appropriate subsets of the variables, that are being mapped. \code{args_maptype} contains the attributes that control the data movement between host and device.
+  \item Variables without the \code{OMP_TGT_MAPTYPE_MAP_PTR} and \code{OMP_TGT_MAPTYPE_PRIVATE_VAL} attributes.  \code{args_base} contain the references to the variables that are being mapped.  \code{args} points to the beginning of the data as requested by the user. For scalars, \code{args_base}  and \code{args} are identical. For arrays, the user may request a subset of arrays, in which case \code{args} points to the beginning of these array subsets. Similarly, for struct, the user may request to map only a subset of the struct fields, in which case  \code{args} points to the first fields of these structs. \code{args_size} contains the sizes of the variables, or the appropriate subsets of the variables, that are being mapped. \code{args_maptype} contains the attributes that control the data movement between host and device.
 
-  \item Variables with the \code{OMP_TGT_MAPTYPE_MAPPED_PTR} attribute and without the \code{OMP_TGT_MAPTYPE_FORWARD_VAL} attribute. Arguments for mapped pointers describe both the pointer and pointee variables.  \code{args_base} contains the references to the pointer variables to be mapped.  If needed, the references to the pointee variables are found by dereferencing the \code{args_base} pointers. \code{args} contains the beginning of the data of the pointee variables.   For arrays and structs, \code{args} points to the beginnings of the subsets of the pointee variables that are being mapped. \code{args_size} contains the sizes of the pointee variables, or the appropriate subset of the variables, that are being mapped. \code{args_maptype}  contains the attributes that control the data movement of the pointee variable between host and device. By definition, the values of the mapped pointer variables on the device are never copied back to the host.
+  \item Variables with the \code{OMP_TGT_MAPTYPE_MAP_PTR} attribute and without the \code{OMP_TGT_MAPTYPE_PRIVATE_VAL} attribute. Arguments for mapped pointers describe both the pointer and pointee variables.  \code{args_base} contains the references to the pointer variables to be mapped.  If needed, the references to the pointee variables are found by dereferencing the \code{args_base} pointers. \code{args} contains the beginning of the data of the pointee variables.   For arrays and structs, \code{args} points to the beginnings of the subsets of the pointee variables that are being mapped. \code{args_size} contains the sizes of the pointee variables, or the appropriate subset of the variables, that are being mapped. \code{args_maptype}  contains the attributes that control the data movement of the pointee variable between host and device. By definition, the values of the mapped pointer variables on the device are never copied back to the host.
   
-  \item Variables with the \code{OMP_TGT_MAPTYPE_FORWARD_VAL} attribute. The values to forward are found in the \code{args_base} arguments;  \code{args} and \code{args_size} values are unused.
+  \item Variables with the \code{OMP_TGT_MAPTYPE_PRIVATE_VAL} attribute. The values to forward are found in the \code{args_base} arguments;  \code{args} and \code{args_size} values are unused.
 %
 \end{itemize}
 
@@ -204,7 +204,7 @@ The arguments that are used to invoke the target kernel (see void \code{*target_
 \begin{lstlisting}
 // N, M and S are constants
 foo(){
-  int A[N], *pA, i;
+  int A[N], D[N], *pA, i;
   struct S1 {int x, y, B[M], *pB, u, v; } s1;
   int C[N];
   
@@ -214,12 +214,12 @@ foo(){
   #pragma omp target data map(pA[0:M], s1, C) use_device_ptr(C)
   { 
     /* C now correspond to the device pointer associated with mapped variable C, and can be used in a Cuda call, for example */
-    #pragma omp target map(to: A[S:M], s1.B[0:M]) map(from:s1.pb[0:M]) is_device_ptr(C)
+    #pragma omp target map(to: A[S:M], s1.B[0:M]) map(from:s1.pb[0:M]) is_device_ptr(C) firstPrivate(D[0:M])
     {
       for (i=S; i<M; ++i){ 
         ++A[i]; 
         --pA[i]; 
-        s1.pb[i-S] = s1.B[i-S] + A[i]*pA[i] - C[i]; 
+        s1.pb[i-S] = s1.B[i-S] + A[i]*pA[i] - C[i] * D[i]; 
       }
     }
   }
@@ -245,45 +245,39 @@ comment \\\hline
 \code{pA} & 
 \code{&pA[0]} & 
 \code{M*sizeof(int)} & 
-\code{TO | FROM} &
+\code{TO | FROM | FIRST_MAP} &
 mapped array subset\\\hline
 %  map(s1)
 \code{&s1} & 
 \code{&s1} & 
 \code{sizeof(S1)} & 
-\code{TO | FROM} &
+\code{TO | FROM | FIRST_MAP} &
 mapped struct\\\hline
 %  map(C) use_device_ptr(C)
 \code{&C} & 
 \code{&C} & 
 \code{N*sizeof(int)} & 
-\code{TO | FROM | RETURN_PTR} &
+\code{TO | FROM | FIRST_MAP | RETURN_PTR} &
 mapped array for which the compiler want the device address\\\hline
 %
 \multicolumn{4}{c}{\cellcolor{gray!20}\code{\#pragma omp target - __tgt_target()}} \\\hline
-%  firstprivate(i) 
-\code{&i} & 
-\code{&i} & 
-\code{sizeof(int)} & 
-\code{PRIVATE  | TO | FORWARD_PTR} &
-first-private scalar\\\hline
 %  map(to: pA[0:0])
 \code{pA} & 
 \code{null} & 
 \code{0} & 
-\code{TO | FORWARD_PTR} &
+\code{TO | FIRST_MAP} &
 zero-length first-private pointer to a mapped array\\\hline
 % map(to: A[S:M])
 \code{&A} &
 \code{&A[S]} &
 \code{sizeof(int)} & 
-\code{TO | FORWARD_PTR} &
+\code{TO | FIRST_MAP} &
 mapped array\\\hline
 % map(to s1.B[0:M] ... s1.pb)
 \code{&s1} & 
 \code{&s1.B[0]} & 
 \code{M*sizeof(int)+sizeof(void *)} & 
-\code{FORWARD_PTR} &
+\code{FIRST_MAP} &
 allocation of mapped struct subset\\\hline 
 % map(to s1.B[0:M])
 \code{&s1} & 
@@ -301,8 +295,19 @@ mapped pointer and pointee array subset\\\hline
 \code{&C} & 
 \code{null} & 
 \code{0} & 
-\code{FORWARD_VAL} &
+\code{PRIVATE_VAL} &
 mapped pointer and pointee array subset\\\hline 
+%  firstprivate(i) 
+\code{i} & 
+\code{NULL} & 
+\code{0} & 
+\code{PRIVATE_VAL} &
+first-private scalar passed as value\\\hline%  firstprivate(D) 
+\code{&D} & 
+\code{&D[0]} & 
+\code{M*sizeof(int)} & 
+\code{PRIVATE_PTR  | TO} &
+first-private array\\\hline
 %
 \end{tabular}
 \caption{Contents of the arrays passed through the interface for Example~\ref{ex:PointersMapping}. \code{OMP_TGT_MAPTYPE_} prefixes are omitted for conciseness. }
