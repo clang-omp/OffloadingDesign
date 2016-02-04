@@ -175,7 +175,7 @@ enum tgt_map_type {
 
 \code{OMP_TGT_MAPTYPE_FORWARD_PTR} instructs the runtime to forward the base device address of the mapped variable to the target var argument.  When used with  the \code{OMP_TGT_MAPTYPE_MAP_PTR} attribute, the runtime forwards the base device address of the pointer mapped variable. 
 
-The next two flags indicate to the runtime that it is not dealing with mapped variables.  First, \code{OMP_TGT_MAPTYPE_PRIVATE} informs the runtime that the described variable is a private variable. First-private variables are indicated by using the  \code{OMP_TGT_MAPTYPE_TO}  attribute in conjunction with the private attribute. Second, \code{OMP_TGT_MAPTYPE_FORWARD_VAL} instructs the runtime to simply forward the value of the \code{args-base} parameter to the target construct.  This attribute is used to implement the \code{is_device_ptr} clause. This attribute can also be used by the compiler to forward small first-private value directly via the target var argument. This attribute cannot be used with other attributes.
+The next two flags indicate to the runtime that it is not dealing with mapped variables.  First, \code{OMP_TGT_MAPTYPE_PRIVATE} informs the runtime that the described variable is a private variable. First-private variables are indicated by using the  \code{OMP_TGT_MAPTYPE_TO}  attribute in conjunction with the private attribute. Second, \code{OMP_TGT_MAPTYPE_FORWARD_VAL} instructs the runtime to simply forward the value of the \code{args_base} parameter to the target construct.  This attribute is used to implement the \code{is_device_ptr} clause. This attribute can also be used by the compiler to forward small first-private values directly to the device via the target var argument. 
 
 The fields in the interface are used in three different ways depending on the presence of the \code{OMP_TGT_MAPTYPE_MAPPED_PTR} and \code{OMP_TGT_MAPTYPE_FORWARD_VAL} attributes.
 
@@ -185,17 +185,17 @@ The fields in the interface are used in three different ways depending on the pr
 
   \item Variables with the \code{OMP_TGT_MAPTYPE_MAPPED_PTR} attribute and without the \code{OMP_TGT_MAPTYPE_FORWARD_VAL} attribute. Arguments for mapped pointers describe both the pointer and pointee variables.  \code{args_base} contains the references to the pointer variables to be mapped.  If needed, the references to the pointee variables are found by dereferencing the \code{args_base} pointers. \code{args} contains the beginning of the data of the pointee variables.   For arrays and structs, \code{args} points to the beginnings of the subsets of the pointee variables that are being mapped. \code{args_size} contains the sizes of the pointee variables, or the appropriate subset of the variables, that are being mapped. \code{args_maptype}  contains the attributes that control the data movement of the pointee variable between host and device. By definition, the values of the mapped pointer variables on the device are never copied back to the host.
   
-  \item Variables with the \code{OMP_TGT_MAPTYPE_FORWARD_VAL} attribute. The value to forward is found in the \code{args_base} arguments;  \code{args} and \code{args_size} values are unused.
+  \item Variables with the \code{OMP_TGT_MAPTYPE_FORWARD_VAL} attribute. The values to forward are found in the \code{args_base} arguments;  \code{args} and \code{args_size} values are unused.
 %
 \end{itemize}
 
 \fussy
 
-Zero-length array references are identified by their \code{args_size} values of zero; and since they cannot have an offset, their \code{args} values is unused.
+Zero-length array references are identified by their \code{args_size} values of zero; and since they cannot have an offset, their \code{args} values are unused.
 
 Table~\ref{tb:PointersMapping} shows the content of the arrays passed to \code{__tgt_target_data_begin()} and \code{__tgt_target} as result of the \dtargetdata{} and \dtarget{} pragmas in Example~\ref{ex:PointersMapping}.
 
- Variable \code{i} is also passed to \code{__tgt_target} because it is captured in the body of the target region and are therefore arguments to the target region. The \libomptarget{} implementation will detect that \code{s1} was mapped before and will not take any action to map this variables again.
+Variable \code{i} is also passed to \code{__tgt_target} because it is captured in the body of the target region and are therefore arguments to the target region. Variable \code{pA} is also captured, and as captured pointers, it is mapped as a zero-length array. The \libomptarget{} implementation will detect that \code{s1} was mapped before and will not take any action to map this variables again. Variable \code{C} illustrates the use of \code{use_device_ptr} and \code{is_device_ptr}.
 
 The arguments that are used to invoke the target kernel (see void \code{*target_vars_ptr} in Section~\ref{sc:TargetRTLInterface}) consist of the mapped base address of all elements. In the example above the arguments would be \code{&di, &dpA, &dA[0], &ds1, &dC}, where \code{dX} is the map of {X} in the device.
 
@@ -305,7 +305,7 @@ mapped pointer and pointee array subset\\\hline
 mapped pointer and pointee array subset\\\hline 
 %
 \end{tabular}
-\caption{Contents of the arrays passed through the interface for Example~\ref{ex:PointersMapping}. \code{OMP_TGT_MAPTYPE} prefixes are omitted for conciseness. }
+\caption{Contents of the arrays passed through the interface for Example~\ref{ex:PointersMapping}. \code{OMP_TGT_MAPTYPE_} prefixes are omitted for conciseness. }
 \label{tb:PointersMapping}
 \end{table}
 
