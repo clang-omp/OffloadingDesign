@@ -265,12 +265,12 @@ mapped array for which the compiler want the device address\\\hline
 \code{pA} & 
 \code{undefined} & 
 \code{0} & 
-\code{TO | FIRST_MAP} &
+\code{TO | FROM| FIRST_MAP} &
 zero-length first-private pointer to a mapped array\\\hline
 % map(to: A[S:M])
 \code{&A} &
 \code{&A[S]} &
-\code{sizeof(int)} & 
+\code{M*sizeof(int)} & 
 \code{TO | FIRST_MAP} &
 mapped array\\\hline
 % map(to s1.B[0:M] ... s1.pb)
@@ -292,7 +292,7 @@ memory move for subset of mapped struct\\\hline
 \code{FROM | MAP_PTR} &
 mapped pointer and pointee array subset\\\hline 
 % is_device_ptr(C)
-\code{&C} & 
+\code{C} & 
 \code{undefined} & 
 \code{undefined} & 
 \code{PRIVATE_VAL} &
