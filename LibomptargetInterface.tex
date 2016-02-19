@@ -93,12 +93,12 @@ There are different strategies that can be used for mapping the entries. The sim
 \begin{example}
 \lstset{basicstyle=\scriptsize,frame=single}
 \begin{lstlisting}
-#pragma omp declare target
 class C{
   C() {// ctor of C}
   ~C() {//dtor of C}
 };
 
+#pragma omp declare target
 C a;
 #pragma omp end declare target
 
@@ -121,7 +121,7 @@ bar(){
 \label{ex:EntriesOrdering}
 \end{example}
 %
-E.g. in the sample program in Example~\ref{ex:EntriesOrdering}, the order of the entries will be: global variable \code{a}, target region 1, global variable \code{b}, target region 2, caller of the constructor of \code{a} and \code{b} (\code{a} and \code{b} have the same priority), caller of the destructors of \code{a} and \code{b}. The callers of the constructors and destructors are always launched with a single thread and team. If the toolchain of a given target does not preserve the order, that target runtime may consult the host entries and obtain the same order of the symbols based on the name.
+For instance, in the sample program in Example~\ref{ex:EntriesOrdering}, the order of the entries will be: global variable \code{a}, target region 1, global variable \code{b}, target region 2, caller of the constructor of \code{a} and \code{b} (\code{a} and \code{b} have the same priority), caller of the destructors of \code{a} and \code{b}. The callers of the constructors and destructors are always launched with a single thread and team. If the toolchain of a given target does not preserve the order, that target runtime may consult the host entries and obtain the same order of the symbols based on the name.
 
 \noindent\rule{\textwidth}{0.4pt}
 
