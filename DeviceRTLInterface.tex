@@ -1,6 +1,7 @@
-\section{Target RTL interface}\label{sc:TargetRTLInterface}
+\section{Target RTL synchronous interface}\label{sc:TargetRTLInterface}
 
-As it can be derived from the previous Section, a target RTL must provide the following capabilities:
+As it can be derived from the previous Sections, a target RTL must provide the following capabilities:
+
 \begin{itemize}
   \item \code{int32_t __tgt_rtl_device_type(int32_t device_id)} – return an integer that identifies the device type. The identifier must match the target binary descriptor.
 
@@ -26,3 +27,31 @@ As it can be derived from the previous Section, a target RTL must provide the fo
 
 For each platform there can be a dedicated set of error numbers defined \libomptarget{} assumes that zero is returned in case of success, independently of the target device. If a given system supports shared memory, the target RTL implementation of the \code{__tgt_rtl_data_*()} can optionally not take any action, as host and target device can operate on the same data.
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Target RTL asynchronous interface} \label{sc:TargetRTLInterfaceAsync}
+
+The asynchronous RTL interface augment the calls seen in Section~\ref{sc:LibomptargetAsync} and Section~\ref{sc:TargetRTLInterface}. First, it implements the RTL-specific calls related to offloading dependences.
+
+\begin{itemize}
+  \item \code{void __tgt_rtl_init_dep(tgt_callback_fct completion_callback)} 
+  \item \code{int32_t __tgt_rtl_enforce_dep(int32_t from_device_id, int32_t to_device_id, tgt_event_t completion_event)} 
+  \item \code{void __tgt_rtl_release_dep(tgt_sync_event_t completion_event)} 
+  \item \code{int32_t __tgt_rtl_process_dep()} 
+ \end{itemize}
+
+Second, the asynchronous RTL interface provides the following asynchronous data transfer and offloading calls. 
+
+\begin{comment}
+\begin{itemize}
+  \item \code{int32_t __tgt_rtl_async_data_submit(int32_t device_id, void *target_ptr, void *host_ptr, int64_t size, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event)} 
+  \item \code{int32_t __tgt_rtl_async_data_retrieve(int32_t device_id, void *host_ptr, void *target_ptr, int64_t size, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event)} 
+  \item \code{int32_t __tgt_rtl_async_run_target_region(int32_t device_id, void *target_entry_ptr, void **target_vars_ptr, int32_t arg_num, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event)} 
+  \item \code{int32_t __tgt_rtl_async_run_target_team_region(int32_t device_id, void *target_entry_ptr, void **target_vars_ptr, int32_t arg_num, int32_t num_teams, int32_t thread_limit, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event)} 
+  \end{itemize}
+  
+  Note that the \code{dep_events} synchronization event may now also include dependences on the completion of data transfers initiated by libomptarget.so.
+  \end{comment}
+  

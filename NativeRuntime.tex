@@ -1,0 +1,17 @@
+\section{Native Runtime}
+
+The native runtime implements the following OpenMP 4.0 routines:
+
+\begin{itemize}
+  \item \code{void omp_set_default_device(int device_num)}
+
+  \item \code{int omp_get_default_device(void)}
+\end{itemize}
+
+which, respectively, saves and retrieves the default devices in the ICVs of the current task.
+
+Several target constructs have \code{nowait} and \code{depend} clauses. These dependences can be handled by the native runtime like any other dependences; however, some devices may enforce dependences between target tasks more efficiently. The offloading infrastructure supports offloading the enforcement of these dependences directly to the devices. Native runtimes are not forced to use this infrastructure, as they can always elect to enforce dependences natively.
+
+When electing to offload the enforcement of dependences among target tasks, a native runtime will need to add two data fields to their target-task data-structures: first,  a field that contains the device id associated with the target task; and second, a field that contains a reference to a completion synchronization event associated with the completion of the target task. This event is an abstract data type, whose content is specific to a given device type. A native runtime also communicate to the offloading infrastructure a callback functions that enables the offloading infrastructure to instruct the native runtime that a given target task has completed. This callback enables a native runtime to clean up the dependence data-structure of the completed target task, and to activate other host tasks that may be dependent on the completion of that target task.
+
+An overview of the flow of operations is as follows. A native runtime obtains a reference to an synchronization event when launching an asynchronous target task via an asynchronous \code{libomptarget.o} interface call. When handling dependences for a new target task B, if the native runtime detects that B is dependent on another target task, say A, and that this specific dependences (A -> B) can be handled by their respective devices, then the native runtime will provide the synchronization event associated with the completion of A to the asynchronous \code{libomptarget.o} interface call that launches B.

@@ -1,10 +1,7 @@
-\section{The libomptarget.so interface}
+\section{The libomptarget.so synchronous interface}\label{sc:LibomptargetSync}
+
 The offload library implements the OpenMP 4.0 user-level runtime library routines:
 \begin{itemize}
-  \item \code{void omp_set_default_device(int device_num)}
-
-  \item \code{int omp_get_default_device(void)}
-
   \item \code{int omp_get_num_devices(void)}
 
   \item \code{int omp_is_initial_device(void)}
@@ -19,7 +16,7 @@ The offload library implements the following compiler-level runtime library rout
 
   \item \code{void __tgt_target_data_begin(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype)}\\
 
-    Initiate a device data environment. It maps variables from the host data environment to the device data environment by recording the mapping between the associated variables’ references used in the host and target into the \libomptarget{} internal structures. The associated variables in the target device data environment are initialized according to the map-type. In the event a given associated variable has already been mapped in other enclosing device data environment, no action is taken for that variable.
+    Initiate a device data environment. It maps variables from the host data environment to the device data environment by recording the mapping between the associated variables references used in the host and target into the \libomptarget{} internal structures. The associated variables in the target device data environment are initialized according to the map-type. In the event a given associated variable has already been mapped in other enclosing device data environment, no action is taken for that variable.
 
   \item \code{void __tgt_target_data_end(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype)}\\
 
@@ -316,14 +313,61 @@ first-private array\\\hline
 
 
 
+%%%%%%%%%%%%
+%%%%%%%%%%%%
+%%%%%%%%%%%%
 
+\section{The libomptarget.so asynchronous interface} \label{sc:LibomptargetAsync}
 
+This section extends the libomptarget.so interface to handle asynchronous target task constructs. We first introduce an abstract data type to hide the implementation details of the RTL-specific synchronization events to the RTL interface.
 
+\begin{itemize}
+  \item \code{typedef void * tgt_event_t;}
+\end{itemize}
 
+We also introduce the signature of a callback function that will be used by libomptarget.so to indicate to the native runtime that a given asynchronous target task has fully completed.
 
+\begin{itemize}
+  \item \code{typedef void * tgt_callback_param_t;}
+   \item \code{typedef void (*tgt_callback_fct)(tgt_callback_param_t param);}
+\end{itemize}
 
+If a native runtime elects to offload the enforcement of target task to target task dependences to a device, it can use the following functions to enable device enforced dependences.
 
+\begin{itemize}
+  \item \code{void __tgt_init_dep(tgt_callback_fct completion_callback)} \\
+  
+  This call indicates to the offloading infrastructure the callback function that must be called once an async target task has completed. This initialization call must be performed once, prior to processing any asynchronous operations.
+  
+  \item \code{int32_t __tgt_enforce_dep(int32_t from_device_id, int32_t to_device_id, tgt_event_t completion_event)} \\
+  
+  This call returns an integer that identifies if a dependence from a first target task (with device ID \code{from_device_id} and associated with a completion synchronization event \code{completion_event}) to a second target task (scheduled to execute on device with device ID \code{to_device_id}) can be satisfied by the devices. If the call returns a zero value, this dependence must be enforce on the host. If the call returns a nonzero value, this dependence must now be enforced by the devices.
+    
+  \item \code{void __tgt_release_dep(tgt_sync_event_t completion_event)} \\
+  
+  This call indicates to the offloading libraries that the native runtime will issue no further requests to enforce dependences tagged with the synchronization event \code{completion_event}. This call enables the offloading libraries to manage the liveranges of the data structures associated with synchronization events. 
+  
+  \item \code{int32_t __tgt_process_dep()} \\
+  
+ This call enables the offloading libraries to process dependences. The call returns zero if no further dependence processing is required; nonzero values indicates that a further call may be required in the future. The native runtime must call this function while a host task is waiting for some target task dependences to be resolved by the devices. This function enables the offloading libraries to perform polling on completed synchronization events that requires host-side processing, for example to cleanup of host side dependence data structures. 
+ \end{itemize}
+  
+The following calls are asynchronous versions of libomptarget.so calls seen in Section~\ref{sc:LibomptargetSync}. 
 
+\begin{itemize}
+\item \code{void __tgt_target_async_data_begin(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event, tgt_callback_param_t param)}
+
+  \item \code{void __tgt_target_async_data_end(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event, tgt_callback_param_t param)}
+  
+  \item \code{void  __tgt_target_async_data_update(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event, tgt_callback_param_t param)}
+
+  \item \code{int32_t __tgt_target_async(int32_t device_id, void *host_addr, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype, int32_t *args_maptype, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event, tgt_callback_param_t param)}
+  
+  \item \code{int32_t __tgt_target_async_teams(int32_t device_id, void *host_addr, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype, int32_t num_teams, int32_t thread_limit, int32_t *args_maptype, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event, tgt_callback_param_t param)}
+
+\end{itemize}
+
+Operations for the above calls will only occur after the \code{num_dep_events} synchronization events listed in \code{dep_events} are satisfied. The call returns in  \code{completion_event} the synchronization event indicating the completion of  the operations. Upon completion, the offloading interface will callback the runtime using the given callback parameter \code{param} given in the above calls. 
 
 
 
