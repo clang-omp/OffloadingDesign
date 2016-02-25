@@ -2,7 +2,7 @@
 
 The proposed offload mechanism implements the OpenMP 4.0 \dtargetdata{}, \dtarget{} and \ddeclaretarget{} constructs. The compiler generates calls to the runtime library whenever a \dtargetdata{} or \dtarget{} directive is encountered. The \ddeclaretarget{} construct will result in the generation of appropriate target code for the target device.
 
-The target code is stored inside the host binaries as additional ELF sections with an appropriate naming convention. The target code is either target assembly in binary form (ELF, PE, etc.) or a higher-level intermediate representation (IR) such as LLVM IR or any other type of IR. If the target code is stored as IR, an implementation can support on-the-fly compilation into target assembly. Note that ELF terminology is being used throughout the document only for illustrative purposes – the implementation should accommodate any other object format supported by LLVM.
+The target code is stored inside the host binaries as additional ELF sections with an appropriate naming convention. The target code is either target assembly in binary form (ELF, PE, etc.) or a higher-level intermediate representation (IR) such as LLVM IR or any other type of IR. If the target code is stored as IR, an implementation can support on-the-fly compilation into target assembly. Note that ELF terminology is being used throughout the document only for illustrative purposes $-$ the implementation should accommodate any other object format supported by LLVM.
 
 A target-independent offload runtime library named \libomptarget{} supports multiple target device types. The \libomptarget{} library utilizes device-specific target run-time libraries (RTLs). At the start of host code execution \libomptarget{} will do the following:
 
