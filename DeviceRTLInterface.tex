@@ -44,14 +44,13 @@ The asynchronous RTL interface augment the calls seen in Section~\ref{sc:Libompt
 
 Second, the asynchronous RTL interface provides the following asynchronous data transfer and offloading calls. 
 
-\begin{comment}
 \begin{itemize}
+  \item \code{int32_t __tgt_rtl_async_dep(int32_t device_id, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event)} 
   \item \code{int32_t __tgt_rtl_async_data_submit(int32_t device_id, void *target_ptr, void *host_ptr, int64_t size, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event)} 
   \item \code{int32_t __tgt_rtl_async_data_retrieve(int32_t device_id, void *host_ptr, void *target_ptr, int64_t size, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event)} 
   \item \code{int32_t __tgt_rtl_async_run_target_region(int32_t device_id, void *target_entry_ptr, void **target_vars_ptr, int32_t arg_num, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event)} 
   \item \code{int32_t __tgt_rtl_async_run_target_team_region(int32_t device_id, void *target_entry_ptr, void **target_vars_ptr, int32_t arg_num, int32_t num_teams, int32_t thread_limit, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event)} 
   \end{itemize}
   
-  Note that the \code{dep_events} synchronization event may now also include dependences on the completion of data transfers initiated by libomptarget.so.
-  \end{comment}
+ In the above list, the first call inserts no computation or communication, it just enables libomptarget to summarize all of the synchronization events (listed in \code{dep_event}) into a single event, \code{completion_event}, which must occur after all listed events are completed. Note that the \code{dep_events} synchronization event may now also include dependences on the completion of data transfers initiated by libomptarget.so. For devices that support the concept of streams, it is expected that the new operation will be queue up in the stream associated with the first synchronization event in \code{dep_event}.
   
