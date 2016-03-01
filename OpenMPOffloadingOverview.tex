@@ -1,6 +1,6 @@
-\section{OpenMP 4.0 offloading overview}\label{sc:OpenMP offloading overview}
+\section{OpenMP 4.5 offloading overview}\label{sc:OpenMP offloading overview}
 
-The OpenMP 4.0 specification introduces offloading directives that can be used to take advantage of accelerators or devices, in OpenMP terminology (see the OpenMP 4.0 specification at www.openmp.org).
+The OpenMP 4.5 specification defines offloading directives that can be used to take advantage of accelerators or devices, in OpenMP terminology (see the OpenMP 4.5 specification at www.openmp.org).
 \begin{itemize}
   \item \textbf{Device}: an implementation-defined logical execution unit. The execution model is host-centric such that a host device offloads code and data to target devices.
 
@@ -68,8 +68,8 @@ for (i = 0; i < 1000; i++) {
     red[i] += foo(c); 
   }
 
-  // The execution of the target region is blocking, therefore the dedicated 
-  // host thread will wait for the device to complete execution.
+  // The execution of the target region is blocking unless the nowait clause is used.
+  // If blocking, the dedicated host thread will wait for the device to complete execution.
 }
 
 for (i = 0; i< device_count; i++)

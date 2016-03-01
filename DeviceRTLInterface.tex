@@ -3,15 +3,15 @@
 As it can be derived from the previous Sections, a target RTL must provide the following capabilities:
 
 \begin{itemize}
-  \item \code{int32_t __tgt_rtl_device_type(int32_t device_id)} – return an integer that identifies the device type. The identifier must match the target binary descriptor.
-
   \item \code{int32_t __tgt_rtl_number_of_devices()} – return the number of available devices of the type supported by the target RTL.
 
   \item \code{int32_t __tgt_init_device(int32_t device_id)} – initialize the specified device. In case of success return 0; otherwise return an error code. 
 
   \item \code{tgt_target_table* __tgt_rtl_load_binary(int32_t device_id, __tgt_device_image *image)} – pass an executable image section described by image to the specified device and prepare an address table of target entities. In case of error, return \code{NULL}. Otherwise, return a pointer to the built address table. Individual entries in the table may also be \code{NULL}, when the corresponding offload region is not supported on the target device (see previous Section).
+  
+  \item \code{int32_t __tgt_rtl_is_valid_binary(__tgt_device_image *image)} - return an integer different from zero if the provided device image can be supported by the runtime. The functionality is similar to comparing the result of \code{__tgt_rtl_load_binary} to null. However, this is meant to be a lightweight query to determine if the RTL is suitable for an image without having to load the library, which can be expensive.
 
-  \item \code{void* __tgt_rtl_data_alloc(int32_t device_id, int64_t size)} – allocate data on the particular target device, of the specified size. Return address of the allocated data on the target that will be stored in the \libomptarget host to target data mapping structures. These mapping structures are used to generate a target variables address table to pass to \code{__tgt_rtl_run_region()}. The \code{__tgt_rtl_data_alloc()}returns \code{NULL} in case an error occurred on the target device.
+  \item \code{void* __tgt_rtl_data_alloc(int32_t device_id, int64_t size)} – allocate data on the particular target device, of the specified size. Return address of the allocated data on the target that will be used by \libomptarget{}to initialize the target data mapping structures. These addresses are used to generate a table of target variables to pass to \code{__tgt_rtl_run_region()}. The \code{__tgt_rtl_data_alloc()}returns \code{NULL} in case an error occurred on the target device.
 
   \item \code{int32_t __tgt_rtl_data_submit(int32_t device_id, void *target_ptr, void *host_ptr, int64_t size)} – pass the data content to the target device using the target address. In case of success, return zero. Otherwise, return an error code.
 
@@ -52,5 +52,5 @@ Second, the asynchronous RTL interface provides the following asynchronous data 
   \item \code{int32_t __tgt_rtl_async_run_target_team_region(int32_t device_id, void *target_entry_ptr, void **target_vars_ptr, int32_t arg_num, int32_t num_teams, int32_t thread_limit, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event)} 
   \end{itemize}
   
- In the above list, the first call inserts no computation or communication, it just enables libomptarget to summarize all of the synchronization events (listed in \code{dep_event}) into a single event, \code{completion_event}, which must occur after all listed events are completed. Note that the \code{dep_events} synchronization event may now also include dependences on the completion of data transfers initiated by libomptarget.so. For devices that support the concept of streams, it is expected that the new operation will be queue up in the stream associated with the first synchronization event in \code{dep_event}.
+ In the above list, the first call requires no computation or communication, it just enables \libomptarget{} to summarize all of the synchronization events (listed in \code{dep_event}) into a single event, \code{completion_event}, which must occur after all listed events are completed. Note that the \code{dep_events} synchronization event may now also include dependences on the completion of data transfers initiated by \libomptarget{}. For devices that support the concept of streams, it is expected that the new operation will be queue up in the stream associated with the first synchronization event in \code{dep_event}.
   

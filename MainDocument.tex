@@ -2,7 +2,7 @@
 
 \usepackage{blindtext, fancyhdr, newfloat, caption, graphicx}
 \usepackage{authblk}
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=1in, headheight=1cm]{geometry}
 \usepackage{listings}
 \usepackage{fancyvrb}
 \usepackage{xcolor,colortbl}
@@ -32,9 +32,10 @@
 % Example environment.
 \DeclareFloatingEnvironment[placement={!ht},name=Example]{example}
 
-
-
 \pagestyle{fancy}
+\fancyhead[RO]{\slshape \rightmark}
+\fancyhead[LO]{\slshape \leftmark \\~ }
+\fancyfoot[C]{\thepage}
 
 \title{\textbf{OpenMP offload infrastructure in LLVM}}
 

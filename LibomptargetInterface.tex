@@ -1,10 +1,12 @@
 \section{The libomptarget.so synchronous interface}\label{sc:LibomptargetSync}
 
-The offload library implements the OpenMP 4.0 user-level runtime library routines:
+The offload library implements the OpenMP 4.5 user-level runtime library routines:
 \begin{itemize}
   \item \code{int omp_get_num_devices(void)}
 
   \item \code{int omp_is_initial_device(void)}
+  
+  \item \#\#\# What else ??? \#\#\# 
 \end{itemize}
 
 The offload library implements the following compiler-level runtime library routines:
@@ -16,23 +18,23 @@ The offload library implements the following compiler-level runtime library rout
 
   \item \code{void __tgt_target_data_begin(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype)}\\
 
-    Initiate a device data environment. It maps variables from the host data environment to the device data environment by recording the mapping between the associated variables references used in the host and target into the \libomptarget{} internal structures. The associated variables in the target device data environment are initialized according to the map-type. In the event a given associated variable has already been mapped in other enclosing device data environment, no action is taken for that variable.
+    Initiate a device data environment. It maps variables from the host data environment to the device data environment by recording the mapping between the references of variables used in the host and target into the \libomptarget{} internal structures. The associated variables in the target device data environment are initialized according to the map-type. In the event a given associated variable has already been mapped in other enclosing device data environment, no action is taken for that variable.
 
   \item \code{void __tgt_target_data_end(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype)}\\
 
-    Close a device data environment. It removes mapped variables from the current device data environment, releases target memory and destroy the mappings created by the \code{__tgt_target_data_begin()} call that initiated the current device data environment. It assigns host variables the value of the corresponding device data environment variable according to the map-type.
+    Close a device data environment. It removes mapped variables from the current device data environment, releases target memory and destroy the mappings created by \code{__tgt_target_data_begin()} that initiated the current device data environment. It assigns host variables the value of the corresponding device data environment variable according to the map-type.
 
   \item \code{void __tgt_target_data_update(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype)}\\
 
-    Make the value of a set of variables consistent between the host device and a target device. If avariable’s map type is \mfrom{}, use the value of the variable on the target device. If a variable’s map type is \mto{}, use the value of the variable on the host device.
+    Make the value of a set of variables consistent between the host device and a target device. If the variable's map type is \mfrom{}, use the value of the variable on the target device. If a variable’s map type is \mto{}, use the value of the variable on the host device.
     
   \item \code{int32_t __tgt_target(int32_t device_id, void *host_addr, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype)}\\
 
-    Perform the same actions as \code{__tgt_target_data_begin} in case \code{arg_num} is non-zero and launch the execution of the target region on the target device; if \code{arg_num} is non-zero after the region execution is done it also performs the same action as \code{__tgt_target_data_end} above. If the offloading fails, an error code is returned, which notifies the caller to transfer execution to the appropriate host region. The return code can be used as an error code which will give the compiler and run-time the freedom to implement optimized behaviors.
+    Perform the same actions as \code{__tgt_target_data_begin} in case \code{arg_num} is non-zero and launch the execution of the target region on the target device; if \code{arg_num} is non-zero after the region execution is done it also performs the same action as \code{__tgt_target_data_end} above. If offloading fails, an error code is returned, which notifies the caller that the associated target region has to be executed by the host. The return code can be used as an error code which will give the compiler and run-time the freedom to implement optimized behaviors.
 
   \item \code{int32_t __tgt_target_teams(int32_t device_id, void *host_addr, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype, int32_t num_teams, int32_t thread_limit)}\\
 
-    This is an extension of \code{__tgt_target} where the caller is able to specify the (maximum) number of teams and threads in each team that \libomptarget{} should start. It reflects the common nesting of the pragma target with the teams one, in OpenMP 4.0. 
+    This is an extension of \code{__tgt_target} where the caller is able to specify the (maximum) number of teams and threads in each team that should be used by \libomptarget{} when it launches the execution of the region. It reflects the common nesting of \dtarget{} and \dteams{} directives in OpenMP 4.5. 
 
 \end{itemize}
 
@@ -53,9 +55,9 @@ struct __tgt_bin_desc{
 };
 \end{lstlisting}
 
-\code{NumDevices} is the number of device types whose execution image was generated by the compiler in order to implement some of the offloading entry points. The device types are specified by the user during the invocation of the compiler by passing the flag \command{–omptargets=T1,...,Tn} where \command{Ti} is the triple of a target the user wants to support. NumDevices equals n in this case. 
+\code{NumDevices} is the number of device types whose execution image was generated by the compiler in order to implement some of the offloading entry points. The device types are specified by the user during the invocation of the compiler by passing the group option \command{–target-offload=Ti} where \command{Ti} is the triple of a target the user wants to support. If $n$ group options \command{–target-offload=Ti}  associated with different device triples are specified when the compiler is invoked, \code{NumDevices} will $n$.
 
-\code{DeviceImages} is a pointer to an array of NumDevices elements, whose element type is:
+\code{DeviceImages} is a pointer to an array of \code{NumDevices} elements, whose element type is:
 \begin{lstlisting}
 struct __tgt_device_image{
   void *ImageStart;
@@ -65,9 +67,9 @@ struct __tgt_device_image{
 };
 \end{lstlisting}
 %
-where ImageStart and ImageEnd contain the addresses where a target image associated to the current host executable/shared library for a given device type starts and ends, respectively. ImageEnd is non-inclusive, i.e. it points to the byte immediately after the target image ends.
+where \code{ImageStart} and \code{ImageEnd} contain the addresses where a target image associated to the current host executable/shared library for a given device type starts and ends, respectively. \code{ImageEnd} is non-inclusive, i.e. it points to the byte immediately after the target image ends.
 
-\code{EntriesBegin} and \code{EntriesEnd} point to the first and last element of an array that contains the information of each global variable and target entry point that require a map between host and target. These pointers are present in both \code{__tgt_bin_desc} and \code{__tgt_device_image} so that the target dependent runtime (see section 5) can use this information as well to more easily retrieve the entries from the target image (e.g. to retrieve the symbol names of the entries – see below). 
+\code{EntriesBegin} and \code{EntriesEnd} point to the first and last element of an array that contains the information of each global variable and target entry point that require a map between host and target. These pointers are present in both \code{__tgt_bin_desc} and \code{__tgt_device_image} so that the target dependent runtime (see Section 5) can use this information as well to more easily retrieve the entries from the target image (e.g. to retrieve the symbol names of the entries – see below). 
 
 Each element of the array pointed by \code{EntriesBegin} has type:
 \begin{lstlisting}
@@ -78,29 +80,32 @@ struct __tgt_offload_entry{
   };
 \end{lstlisting}
 %
-where \code{addr} is the address of that global variable or entry point in the host, name is the name of the 
-symbol that refers to that global variable or entry point, and size is the size in bytes of the global variable or zero if it is an entry point. If the address field is set to \code{NULL}, the corresponding entry in the table is not supported by the target device associated to this table.
+where \code{addr} is the address of that global variable or entry point in the host, \code{name} is the name of the 
+symbol that refers to that global variable or entry point, and \code{size} is the size in bytes of the global variable or zero if it is an entry point. If the address field is set to \code{NULL}, the corresponding entry in the table is not supported by the target device associated to this table.
 
 \noindent\rule{\textwidth}{0.4pt}
 
 \libomptarget{} has to be able to map the host entries to the corresponding device entries.
 
-There are different strategies that can be used for mapping the entries. The simplest one is to use the names of the entries for the mapping by performing a name-based search using the name field of the \code{__tgt_offload_entry}. The field name is useful for targets whose runtime requires access to the symbol names in order to locate the correspondent address in the target image. The array that starts at EntriesBegin is built by the compiler in conjunction with the linker, which forwards sequences of entries of different compilation units to the same binary section. In case target and host toolchains can provide strict ordering for both target and host tables – then the mapping can be done by the sequence number of the entry. The frontend ensures that the global variables/entries follow the same order they appear in the source file. Entries associated with static initializers and global destructors are appended to the end of the entries array (i.e. after the global variables themselves and the entries associated with target regions) in the same order they are required in the program. 
+There are different strategies that can be used for mapping the entries. The simplest one is to use the names of the entries for the mapping by performing a name-based search using the name field of the \code{__tgt_offload_entry}. The field name is useful for targets whose runtime requires access to the symbol names in order to locate the correspondent address in the target image. The array that starts at \code{EntriesBegin} is built by the compiler in conjunction with the linker, which forwards sequences of entries of different compilation units to the same binary section. In the event target and host toolchains can provide strict ordering for both target and host tables – then the mapping can be done by the sequence number of the entry. The frontend ensures that the global variables/entries follow the same order for both host and device. If the toolchain of a given target does not preserve the order, that target runtime may consult the host entries and obtain the same order of the symbols based on the name.
+
+\noindent\rule{\textwidth}{0.4pt}
+
+Static initializers and global destructors associated with device entries are implemented as target regions and executed in the same order they are required in the program. The callers of the constructors and destructors are always launched with a single thread and team. Example~\ref{ex:EntriesOrdering} shows a code snippet that would require the creation of these target regions.
 
 \begin{example}
 \lstset{basicstyle=\scriptsize,frame=single}
 \begin{lstlisting}
+#pragma omp declare target
 class C{
   C() {// ctor of C}
   ~C() {//dtor of C}
 };
-
-#pragma omp declare target
 C a;
 #pragma omp end declare target
 
 foo(){
-  #pragma target
+  #pragma omp target
   { //target region 1 }
 }
 
@@ -109,23 +114,22 @@ C b;
 #pragma omp end declare target
 
 bar(){
-  #pragma target
+  #pragma omp target
   { //target region 2 }
 }
 \end{lstlisting}
 \lstset{basicstyle=\small\bfseries,frame=none}
-\caption{Motivational example for the ordering of entries.}
+\caption{Example requiring the creation of target regions to implement the device variables global initializers and destructors.}
 \label{ex:EntriesOrdering}
 \end{example}
 %
-For instance, in the sample program in Example~\ref{ex:EntriesOrdering}, the order of the entries will be: global variable \code{a}, target region 1, global variable \code{b}, target region 2, caller of the constructor of \code{a} and \code{b} (\code{a} and \code{b} have the same priority), caller of the destructors of \code{a} and \code{b}. The callers of the constructors and destructors are always launched with a single thread and team. If the toolchain of a given target does not preserve the order, that target runtime may consult the host entries and obtain the same order of the symbols based on the name.
 
 \noindent\rule{\textwidth}{0.4pt}
 
-\code{int32_t device_id} is an integer that uniquely identifies a given target. In the first call of \code{__tgt_register_lib}, \libomptarget{} detects the available target dependent RTLs in the system and uses them to query the number of devices of each type that are ready to be used. If $A$ devices of type \command{T1} and $B$ devices of type \command{T2} are found, where \command{T1} and \command{T2} are the types specified by the user with \command{-–omptargets=T1,T2}, \code{device_id} $[0,A[$ will map to devices of type \command{T1} and \code{device_id} $[A,A+B[$ will map to devices of type \command{T2}. If \code{device_id} is greater or equal than $A+B$, the call where it is used will fail and no action will be taken by \libomptarget{}. On top of the positive values used for \code{device_id}, the compiler also employs three reserved values:
+\code{int32_t device_id} is an integer that uniquely identifies a given target. In the first call of \code{__tgt_register_lib}, \libomptarget{} detects the available target dependent RTLs in the system and uses them to query the number of devices of each type that are ready to be used. If $A$ devices of type \command{T1} and $B$ devices of type \command{T2} are found, where \command{T1} and \command{T2} are the types specified in that exact order by the user with \command{-–target-offload=Ti}, \code{device_id} $[0,A[$ will map to devices of type \command{T1} and \code{device_id} $[A,A+B[$ will map to devices of type \command{T2}. If using separate compilation, the user must use the same order of triples in the separate compiler runs, otherwise he cannot assume a unique map between device IDs and types.  If \code{device_id} is greater or equal than $A+B$, the call where it is used will fail (region would be executed by the host) and no further action will be taken by \libomptarget{}. On top of the positive values used for \code{device_id}, the compiler also employs three reserved values:
 
 \begin{itemize}
-  \item \code{device_id = -1}: informs the runtime that the user has not specified any device ID, and therefore the default must be used, which may be specified through an environment variables as specified in the OpenMP 4.0 specification.
+  \item \code{device_id = -1}: informs the runtime that the user has not specified any device ID, and therefore the default must be used, which may be specified through an environment variables as specified in the OpenMP 4.5 specification.
 
   \item \code{device_id = -2}: informs the runtime that the target action must be performed on all available devices and can be delayed until the first time the device action is invoked with a device ID greater or equal to \code{-1}. This is mainly used to call C++ global initializers, which only need to be called if the device is eventually used for executing at least one target region.
 
@@ -166,13 +170,13 @@ enum tgt_map_type {
 \end{lstlisting}
 
 \sloppy
-\code{OMP_TGT_MAPTYPE_TO} instructs the runtime to copy  host data to the device in a target data begin, target update, or when initiating a target construct.  \code{OMP_TGT_MAPTYPE_FROM} instructs the runtime to copy  device data to the host in a target data end, and target update, or when completing a target construct.  \code{OMP_TGT_MAPTYPE_ALWAYS} forces the copying regardless of the reference count associated with the map.  \code{OMP_TGT_MAPTYPE_DELETE}  forces the unmapping of the object in a target data end or when completing a target construct. \code{OMP_TGT_MAPTYPE_MAP_PTR} forces the runtime to map the pointer variable as well as the pointee variable. This attribute also instructs the runtime to initialize the value of the pointer on the device with the base device address of the pointee mapped variable. 
+\code{OMP_TGT_MAPTYPE_TO} instructs the runtime to copy host data to the device in a \code{__tgt_target_data_begin}, \code{__tgt_target_update}, or before the kernel execution is triggered byt \code{__tgt_target}.  \code{OMP_TGT_MAPTYPE_FROM} instructs the runtime to copy  device data to the host in a \code{__tgt_target_data_end}, \code{__tgt_target_update}, or when finalizing \code{__tgt_target}.  \code{OMP_TGT_MAPTYPE_ALWAYS} forces the copying regardless of the reference count associated with the map.  \code{OMP_TGT_MAPTYPE_DELETE}  forces the unmapping of the object in a target data end or when completing a target construct. \code{OMP_TGT_MAPTYPE_MAP_PTR} forces the runtime to map the pointer variable as well as the pointee variable. This attribute also instructs the runtime to initialize the value of the pointer on the device with the base device address of the pointee mapped variable. 
 
-\code{OMP_TGT_MAPTYPE_FIRST_MAP} instructs the runtime that it is the first occurrence of this mapped variable within this construct.  When used with  the \code{OMP_TGT_MAPTYPE_MAP_PTR}, it instructs the runtime that it is the first occurrence of the pointer mapped variable; a pointee mapped variable is considered by definition as its first occurrence. This attributes is used to determine when to update the reference count associated with a mapped variable needs, and when to include the base device address of a mapped variables in the target var argument. 
+\code{OMP_TGT_MAPTYPE_FIRST_MAP} instructs the runtime that it is the first occurrence of this mapped variable within this construct.  When used with  the \code{OMP_TGT_MAPTYPE_MAP_PTR}, it instructs the runtime that it is the first occurrence of the pointer mapped variable; a pointee mapped variable is considered by definition as its first occurrence. These attributes are used to determine when to update the reference count associated with a mapped variable, and when to include the base device address of a mapped variables in the device instance of a pointer variable. 
 
-\code{OMP_TGT_MAPTYPE_RETURN_PTR} instructs the runtime to returns the base device address of the mapped variable in the corresponding \code{base_args} entry. When used with  the \code{OMP_TGT_MAPTYPE_MAP_PTR} attribute, the runtime returns the base device address of the pointer mapped variable. This attribute is used to implement the \code{use_device_ptr} clause.
+\code{OMP_TGT_MAPTYPE_RETURN_PTR} instructs the runtime to return the base device address of the mapped variable in the corresponding \code{base_args} entry. When used with  the \code{OMP_TGT_MAPTYPE_MAP_PTR} attribute, the runtime returns the base device address of the pointer mapped variable. This attribute is used to implement the \code{use_device_ptr} clause.
 
-The next two flags indicate to the runtime that it is not dealing with mapped variables.  First, \code{OMP_TGT_MAPTYPE_PRIVATE_PTR} informs the runtime that the described variable is a private variable. First-private variables are indicated by using the  \code{OMP_TGT_MAPTYPE_TO}  attribute in conjunction with the private attribute. The runtime is responsible for allocating the device memory associated with the variable, but it is not mapped as it is private. Second, \code{OMP_TGT_MAPTYPE_PRIVATE_VAL} instructs the runtime to simply forward the value of the \code{args_base} parameter to the target construct.  This attribute is used to implement the \code{is_device_ptr} clause. This attribute can also be used by the compiler to forward small first-private values directly to the device via the target var argument. No allocation of memory occurs with this attribute.
+The next two flags indicate to the runtime that it is not dealing with mapped variables.  First, \code{OMP_TGT_MAPTYPE_PRIVATE_PTR} informs the runtime that the described variable is a private variable. First-private variables are indicated by using the  \code{OMP_TGT_MAPTYPE_TO}  attribute in conjunction with the private attribute. The runtime is responsible for allocating the device memory associated with the variable, but it is not mapped as it is private. Second, \code{OMP_TGT_MAPTYPE_PRIVATE_VAL} instructs the runtime to simply forward the value of the \code{args_base} parameter to the target construct.  This attribute is used to implement the \code{is_device_ptr} clause. This attribute can also be used by the compiler to forward small first-private values directly to the device via the kernel parameters. No allocation of memory occurs with this attribute.
 
 The fields in the interface are used in three different ways depending on the presence of the \code{OMP_TGT_MAPTYPE_MAP_PTR} and \code{OMP_TGT_MAPTYPE_PRIVATE_VAL} attributes.
 
@@ -192,7 +196,7 @@ Zero-length array references are identified by their \code{args_size} values of 
 
 Table~\ref{tb:PointersMapping} shows the content of the arrays passed to \code{__tgt_target_data_begin()} and \code{__tgt_target} as result of the \dtargetdata{} and \dtarget{} pragmas in Example~\ref{ex:PointersMapping}.
 
-Variable \code{i} is also passed to \code{__tgt_target} because it is captured in the body of the target region and are therefore arguments to the target region. Variable \code{pA} is also captured, and as captured pointers, it is mapped as a zero-length array. The \libomptarget{} implementation will detect that \code{s1} was mapped before and will not take any action to map this variables again. Variable \code{C} illustrates the use of \code{use_device_ptr} and \code{is_device_ptr}.
+Variable \code{i} is also passed to \code{__tgt_target} because it is captured in the body of the target region and are therefore arguments to the target region. Variable \code{pA} is also captured, and as captured pointers, it is mapped as a zero-length array. The \libomptarget{} implementation will detect that \code{s1} was mapped before and will not take any action to map this variable again. Variable \code{C} illustrates the use of \code{use_device_ptr} and \code{is_device_ptr}.
 
 The arguments that are used to invoke the target kernel (see void \code{*target_vars_ptr} in Section~\ref{sc:TargetRTLInterface}) consist of the mapped base address of all elements. In the example above the arguments would be \code{&di, &dpA, &dA[0], &ds1, &dC}, where \code{dX} is the map of {X} in the device.
 
@@ -319,20 +323,20 @@ first-private array\\\hline
 
 \section{The libomptarget.so asynchronous interface} \label{sc:LibomptargetAsync}
 
-This section extends the libomptarget.so interface to handle asynchronous target task constructs. We first introduce an abstract data type to hide the implementation details of the RTL-specific synchronization events to the RTL interface.
+This section describes the \libomptarget{} interface dedicated to handle asynchronous target task constructs. We first introduce an abstract data type to hide the implementation details of the RTL-specific synchronization events to the RTL interface.
 
 \begin{itemize}
   \item \code{typedef void * tgt_event_t;}
 \end{itemize}
 
-We also introduce the signature of a callback function that will be used by libomptarget.so to indicate to the native runtime that a given asynchronous target task has fully completed.
+We also introduce the signature of a callback function that will be used by \libomptarget{} to indicate to the native runtime that a given asynchronous target task has fully completed.
 
 \begin{itemize}
   \item \code{typedef void * tgt_callback_param_t;}
    \item \code{typedef void (*tgt_callback_fct)(tgt_callback_param_t param);}
 \end{itemize}
 
-If a native runtime elects to offload the enforcement of target task to target task dependences to a device, it can use the following functions to enable device enforced dependences.
+If a native runtime elects to offload the enforcement of target-task-to-target-task dependences to a device, it can use the following functions to enable device enforced dependences.
 
 \begin{itemize}
   \item \code{void __tgt_init_dep(tgt_callback_fct completion_callback)} \\
@@ -341,18 +345,18 @@ If a native runtime elects to offload the enforcement of target task to target t
   
   \item \code{int32_t __tgt_enforce_dep(int32_t from_device_id, int32_t to_device_id, tgt_event_t completion_event)} \\
   
-  This call returns an integer that identifies if a dependence from a first target task (with device ID \code{from_device_id} and associated with a completion synchronization event \code{completion_event}) to a second target task (scheduled to execute on device with device ID \code{to_device_id}) can be satisfied by the devices. If the call returns a zero value, this dependence must be enforce on the host. If the call returns a nonzero value, this dependence must now be enforced by the devices.
+  This call returns an integer that identifies if a dependence from a first target task (with device ID \code{from_device_id} and associated with a completion synchronization event \code{completion_event}) to a second target task (scheduled to execute on device with device ID \code{to_device_id}) can be satisfied by the devices. If the call returns a zero value, this dependence must be enforced on the host. If the call returns a nonzero value, this dependence must now be enforced by the devices.
     
   \item \code{void __tgt_release_dep(tgt_sync_event_t completion_event)} \\
   
-  This call indicates to the offloading libraries that the native runtime will issue no further requests to enforce dependences tagged with the synchronization event \code{completion_event}. This call enables the offloading libraries to manage the liveranges of the data structures associated with synchronization events. 
+  This call indicates to the offloading libraries that the native runtime will issue no further requests to enforce dependences tagged with the synchronization event \code{completion_event}. This call enables the offloading libraries to manage the live ranges of the data structures associated with synchronization events. 
   
   \item \code{int32_t __tgt_process_dep()} \\
   
- This call enables the offloading libraries to process dependences. The call returns zero if no further dependence processing is required; nonzero values indicates that a further call may be required in the future. The native runtime must call this function while a host task is waiting for some target task dependences to be resolved by the devices. This function enables the offloading libraries to perform polling on completed synchronization events that requires host-side processing, for example to cleanup of host side dependence data structures. 
+ This call enables the offloading libraries to process dependences. The call returns zero if no further dependence processing is required; nonzero values indicates that a further call may be required in the future. The native runtime must call this function while a host task is waiting for some target-task dependences to be resolved by the devices. This function enables the offloading libraries to perform polling on completed synchronization events that requires host-side processing, for example to cleanup the host side dependence data structures. 
  \end{itemize}
   
-The following calls are asynchronous versions of libomptarget.so calls seen in Section~\ref{sc:LibomptargetSync}. 
+The following calls are asynchronous versions of \libomptarget{} calls seen in Section~\ref{sc:LibomptargetSync}. 
 
 \begin{itemize}
 \item \code{void __tgt_target_async_data_begin(int32_t device_id, int32_t num_args, void** args_base, void** args, int64_t *args_size, int32_t *args_maptype, int32_t num_dep_events, tgt_event_t *dep_events, tgt_event_t *completion_event, tgt_callback_param_t param)}
@@ -367,7 +371,7 @@ The following calls are asynchronous versions of libomptarget.so calls seen in S
 
 \end{itemize}
 
-Operations for the above calls will only occur after the \code{num_dep_events} synchronization events listed in \code{dep_events} are satisfied. The call returns in  \code{completion_event} the synchronization event indicating the completion of  the operations. Upon completion, the offloading interface will callback the runtime using the given callback parameter \code{param} given in the above calls. 
+Operations for the above calls will only occur after the \code{num_dep_events} synchronization events listed in \code{dep_events} are satisfied. The call returns in  \code{completion_event} the synchronization event indicating the completion of  the operations. Upon completion, the offloading interface will callback the runtime using the given callback parameter \code{param} provided in the above calls. 
 
 
 
