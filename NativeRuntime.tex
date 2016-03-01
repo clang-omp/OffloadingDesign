@@ -1,16 +1,17 @@
 \section{Native Runtime}
 
-The native runtime implements the following OpenMP 4.5 routines:
+The native runtime implements the following OpenMP 4.5 routines.
 
 \begin{itemize}
-  \item \code{void omp_set_default_device(int device_num)}
+  \item \code{void omp_set_default_device(int device_num)} call sets the default device ID in the ICV of the encountering task.
 
-  \item \code{int omp_get_default_device(void)}
+  \item \code{int omp_get_default_device(void)} call retrieves the default device ID in the ICV of the encountering task.
+ 
+  \item \code{int omp_get_num_teams(void)} returns the number of teams for target teams construct executing on the host.
   
-  \item \#\#\# Other calls missing here??? \#\#\# 
+  \item \code{int omp_get_team_num(void)} returns the team number associated with the encountering task for target teams construct executing on the host.
+ 
 \end{itemize}
-
-which, respectively, saves and retrieves the default devices in the   Internal Control Variables (ICVs) of the current task.
 
 Several target constructs have \code{nowait} and \code{depend} clauses. These clauses enable asynchronous execution and ath the same time enforce the required data dependences. These dependences can be handled by the native runtime like any other dependences; however, some devices may enforce dependences between target tasks more efficiently. The offloading infrastructure supports offloading the enforcement of these dependences directly to the devices. Native runtimes are not forced to use this infrastructure, as they can always elect to enforce dependences natively.
 
