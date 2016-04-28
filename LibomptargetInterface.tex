@@ -162,7 +162,7 @@ enum tgt_map_type {
   OMP_TGT_MAPTYPE_ALWAYS = 0x0004,
   OMP_TGT_MAPTYPE_DELETE = 0x0008,
   OMP_TGT_MAPTYPE_MAP_PTR = 0x0010,
-  OMP_TGT_MAPTYPE_FIRST_MAP = 0x0020,
+  OMP_TGT_MAPTYPE_FIRST_REF = 0x0020,
   OMP_TGT_MAPTYPE_RETURN_PTR = 0x0040,
   OMP_TGT_MAPTYPE_PRIVATE_PTR = 0x0080,
   OMP_TGT_MAPTYPE_PRIVATE_VAL = 0x0100
@@ -172,7 +172,7 @@ enum tgt_map_type {
 \sloppy
 \code{OMP_TGT_MAPTYPE_TO} instructs the runtime to copy host data to the device in a \code{__tgt_target_data_begin}, \code{__tgt_target_update}, or before the kernel execution is triggered byt \code{__tgt_target}.  \code{OMP_TGT_MAPTYPE_FROM} instructs the runtime to copy  device data to the host in a \code{__tgt_target_data_end}, \code{__tgt_target_update}, or when finalizing \code{__tgt_target}.  \code{OMP_TGT_MAPTYPE_ALWAYS} forces the copying regardless of the reference count associated with the map.  \code{OMP_TGT_MAPTYPE_DELETE}  forces the unmapping of the object in a target data end or when completing a target construct. \code{OMP_TGT_MAPTYPE_MAP_PTR} forces the runtime to map the pointer variable as well as the pointee variable. This attribute also instructs the runtime to initialize the value of the pointer on the device with the base device address of the pointee mapped variable. The attributes \code{OMP_TGT_MAPTYPE_TO}, \code{OMP_TGT_MAPTYPE_FROM}, \code{OMP_TGT_MAPTYPE_ALWAYS}, and \code{OMP_TGT_MAPTYPE_DELETE} only apply to the pointee variable. 
 
-\code{OMP_TGT_MAPTYPE_FIRST_MAP} instructs the runtime that it is the first occurrence of this mapped variable within this construct.  When used with  the \code{OMP_TGT_MAPTYPE_MAP_PTR}, it instructs the runtime that it is the first occurrence of the pointer mapped variable; a pointee mapped variable is considered by definition as its first occurrence. These attributes are used to determine when to update the reference count associated with a mapped variable, and when to include the base device address of a mapped variables in the device instance of a pointer variable. 
+\code{OMP_TGT_MAPTYPE_FIRST_REF} instructs the runtime that it is the first occurrence of this mapped variable within this construct, or the associated map information is the first one that relates with that variable (the map of a variable can result in multiple sets of map information to be passed to the runtime).  When used with  the \code{OMP_TGT_MAPTYPE_MAP_PTR}, it instructs the runtime that it is the first occurrence of the pointer mapped variable; a pointee mapped variable is considered by definition as its first occurrence. These attributes are used to determine when to update the reference count associated with a mapped variable, and when to include the base device address of a mapped variable in the device instance of a pointer variable. 
 
 \code{OMP_TGT_MAPTYPE_RETURN_PTR} instructs the runtime to return the base device address of the mapped variable in the corresponding \code{base_args} entry. When used with  the \code{OMP_TGT_MAPTYPE_MAP_PTR} attribute, the runtime returns the base device address of the pointer mapped variable. This attribute is used to implement the \code{use_device_ptr} clause.
 
@@ -246,19 +246,19 @@ comment \\\hline
 \code{pA} & 
 \code{&pA[0]} & 
 \code{M*sizeof(int)} & 
-\code{TO | FROM | FIRST_MAP} &
+\code{TO | FROM | FIRST_REF} &
 mapped array subset\\\hline
 %  map(s1)
 \code{&s1} & 
 \code{&s1} & 
 \code{sizeof(S1)} & 
-\code{TO | FROM | FIRST_MAP} &
+\code{TO | FROM | FIRST_REF} &
 mapped struct\\\hline
 %  map(C) use_device_ptr(C)
 \code{&C} & 
 \code{&C} & 
 \code{N*sizeof(int)} & 
-\code{TO | FROM | FIRST_MAP | RETURN_PTR} &
+\code{TO | FROM | FIRST_REF | RETURN_PTR} &
 mapped array for which the compiler want the device address\\\hline
 %
 \multicolumn{4}{c}{\cellcolor{gray!20}\code{\#pragma omp target - __tgt_target()}} \\\hline
@@ -266,19 +266,19 @@ mapped array for which the compiler want the device address\\\hline
 \code{pA} & 
 \code{undefined} & 
 \code{0} & 
-\code{TO | FROM| FIRST_MAP} &
+\code{TO | FROM| FIRST_REF} &
 zero-length first-private pointer to a mapped array\\\hline
 % map(to: A[S:M])
 \code{&A} &
 \code{&A[S]} &
 \code{M*sizeof(int)} & 
-\code{TO | FIRST_MAP} &
+\code{TO | FIRST_REF} &
 mapped array\\\hline
 % map(to s1.B[0:M] ... s1.pb)
 \code{&s1} & 
 \code{&s1.B[0]} & 
 \code{M*sizeof(int)+sizeof(void *)} & 
-\code{FIRST_MAP} &
+\code{FIRST_REF} &
 allocation of mapped struct subset\\\hline 
 % map(to s1.B[0:M])
 \code{&s1} & 

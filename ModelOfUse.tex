@@ -16,7 +16,7 @@ A target-independent offload runtime library named \libomptarget{} supports mult
 
 \libomptarget{} provides the host with an API to map variables and initiate execution of target regions on a target device. After \libomptarget{} has verified that suitable target code is present and that a target RTL is ready to execute a target region, the target RTL is invoked via API routines(described below) to execute the region.
 
-This scheme provides flexibility for generating code for multiple heterogeneous device types. For example, the target region code in Example~\ref{ex:OffloadingExample} can be executed in a Phi\texttrademark{} coprocessor, GPU or DSP if any of thesedevices is present in the system (see Figure~\ref{fg:libomptarget_schematic}). The design of the offloading interface does not limit the number and type of devices associated to a host processor or the ability to use these at the same time. If both devices are present, different iterations of the loop can be executed on both devices at the same time.
+This scheme provides flexibility for generating code for multiple heterogeneous device types. For example, the target region code in Example~\ref{ex:OffloadingExample} can be executed in a Phi\texttrademark{} coprocessor, GPU or DSP if any of these devices is present in the system (see Figure~\ref{fg:libomptarget_schematic}). The design of the offloading interface does not limit the number and type of devices associated to a host processor or the ability to use these at the same time. If both devices are present, different iterations of the loop can be executed on both devices at the same time.
 
 \begin{figure}
   \centering
