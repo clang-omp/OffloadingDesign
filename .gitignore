@@ -1,2 +1,4 @@
 MainDocument.pdf
 .texpadtmp
+*.aux
+*.log
